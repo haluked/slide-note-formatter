@@ -56,14 +56,19 @@ if %ERRORLEVEL% neq 0 (
         exit /b 1
     )
     set "BIN_SRC=target\debug\slide-note-formatter.exe"
+    set "DLL_SRC=target\debug\WebView2Loader.dll"
 ) else (
     set "BIN_SRC=target\release\slide-note-formatter.exe"
+    set "DLL_SRC=target\release\WebView2Loader.dll"
 )
 cd ..
 
 echo.
-echo [3/3] Copying binary to dist\SlideNoteFormatter.exe...
+echo [3/3] Copying binaries and dependencies to dist\...
 copy /Y "src-tauri\%BIN_SRC%" "dist\SlideNoteFormatter.exe" >nul
+if exist "src-tauri\%DLL_SRC%" (
+    copy /Y "src-tauri\%DLL_SRC%" "dist\WebView2Loader.dll" >nul
+)
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] Failed to copy binary to dist folder!
     if "%~1"=="/nopause" goto :eof

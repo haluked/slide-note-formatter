@@ -4,6 +4,8 @@ __pycache__/
 *$py.class
 *.o
 *.obj
+*.dll
+*.log
 
 # Build outputs
 build/

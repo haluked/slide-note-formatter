@@ -1,8 +1,8 @@
 use std::fs;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use serde_json::Value;
 use walkdir::WalkDir;
 use regex::Regex;
@@ -12,7 +12,13 @@ fn get_config_path() -> Option<PathBuf> {
 }
 
 fn find_python() -> Option<PathBuf> {
-    // 1. Check WindowsApps PythonSoftwareFoundation
+    // 0. Explicit MinGW GCC Python (verified working 3.12)
+    let mingw_py = Path::new("C:\\msys64\\mingw64\\bin\\python.exe");
+    if mingw_py.exists() {
+        return Some(mingw_py.to_path_buf());
+    }
+
+    // 1. Check WindowsApps PythonSoftwareFoundation real directory
     if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
         let windows_apps = Path::new(&local_app_data).join("Microsoft").join("WindowsApps");
         if let Ok(entries) = std::fs::read_dir(&windows_apps) {
@@ -29,17 +35,17 @@ fn find_python() -> Option<PathBuf> {
         }
     }
 
-    // 2. Standard python in PATH
-    if let Ok(output) = Command::new("python").arg("--version").output() {
-        if output.status.success() {
-            return Some(PathBuf::from("python"));
-        }
-    }
-
-    // 3. py -3
+    // 2. py -3 launcher
     if let Ok(output) = Command::new("py").args(["-3", "--version"]).output() {
         if output.status.success() {
             return Some(PathBuf::from("py"));
+        }
+    }
+
+    // 3. Standard python in PATH
+    if let Ok(output) = Command::new("python").arg("--version").output() {
+        if output.status.success() {
+            return Some(PathBuf::from("python"));
         }
     }
 
@@ -213,9 +219,29 @@ async fn process_batch(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    std::panic::set_hook(Box::new(|info| {
+        let msg = format!("PANIC: {:?}", info);
+        eprintln!("{}", msg);
+        let _ = std::fs::write("tauri_panic.log", msg);
+    }));
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            let _ = std::fs::write("tauri_setup.log", "SETUP HOOK EXECUTED\n");
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.show();
+                let _ = w.set_focus();
+            }
+            Ok(())
+        })
+        .on_window_event(|window, event| {
+            let msg = format!("EVENT on {:?}: {:?}\n", window.label(), event);
+            if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open("tauri_events.log") {
+                let _ = f.write_all(msg.as_bytes());
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             pick_files,
             pick_folder,
