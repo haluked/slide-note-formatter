@@ -17,19 +17,35 @@ from assets import get_logo_bytes, get_app_icon_path
 
 
 def detect_course_name(paths):
+    if not paths:
+        return ""
+    import re
+    # 1. Try from parent directory if it's a specific subject/course name
+    parent_dirs = set()
     for p in paths:
-        low = p.lower()
-        if "electrical" in low or "elec" in low:
-            return "ELECTRICAL MACHINES"
-        elif "machine design" in low or "fmd" in low:
-            return "FUNDAMENTALS OF MACHINE DESIGN"
-        elif "automatic control" in low:
-            return "AUTOMATIC CONTROL"
-        elif "motor vehicle" in low or "mvd" in low:
-            return "MOTOR VEHICLE DESIGN"
-        elif "circuit" in low:
-            return "ELECTRIC CIRCUITS"
-    return "COURSE"
+        pdir = os.path.basename(os.path.dirname(os.path.normpath(p)))
+        if pdir:
+            parent_dirs.add(pdir)
+
+    generic_names = {
+        "desktop", "downloads", "documents", "belgeler", "masaüstü", "indirilenler",
+        "pdf", "pdfs", "slayt", "slaytlar", "slides", "notes", "notlar", "ders", "dersler",
+        "_not_formatli", "temp", "tmp", "output"
+    }
+
+    if len(parent_dirs) == 1:
+        cand = list(parent_dirs)[0].strip()
+        if cand.lower() not in generic_names and len(cand) > 2:
+            return cand.upper()
+
+    # 2. Try to parse from filename (e.g. MATH101, CS50, ELEC201)
+    for p in paths:
+        fname = os.path.splitext(os.path.basename(p))[0]
+        code_match = re.search(r"\b([A-Za-z]{2,5}\s*\d{2,4}[A-Za-z]?)\b", fname)
+        if code_match:
+            return code_match.group(1).upper()
+
+    return ""
 
 
 # Unslop Theme Tokens (Light, Dark)
@@ -65,7 +81,7 @@ class SlideNoteApp(ctk.CTk):
 
         self.cfg = ConfigManager()
 
-        self.title("PoliTo Slayt Not Formatlayıcı")
+        self.title("Slayt Not Formatlayıcı")
         self.geometry("1040, 750")
         self.minsize(960, 680)
 
@@ -90,6 +106,17 @@ class SlideNoteApp(ctk.CTk):
 
         self.setup_ui()
 
+    def get_profile_tag_text(self):
+        user = str(self.cfg.get("user_name", "")).strip()
+        uni = str(self.cfg.get("university_name", "")).strip()
+        if user and uni:
+            return f"{user}  ·  {uni}"
+        elif user:
+            return user
+        elif uni:
+            return uni
+        return "Öğrenci Profili (Ayarlanmadı)"
+
     def setup_ui(self):
         # 1. Top Header Bar
         header = ctk.CTkFrame(self, fg_color="transparent")
@@ -100,7 +127,7 @@ class SlideNoteApp(ctk.CTk):
 
         title_lbl = ctk.CTkLabel(
             header_left,
-            text="PoliTo Slayt Not Formatlayıcı",
+            text="Slayt Not Formatlayıcı",
             font=ctk.CTkFont(size=18, weight="bold"),
             text_color=THEME["text_primary"]
         )
@@ -124,7 +151,7 @@ class SlideNoteApp(ctk.CTk):
 
         self.lbl_profile_tag = ctk.CTkLabel(
             header,
-            text=f"{self.cfg.get('user_name')}  ·  {self.cfg.get('university_name')}",
+            text=self.get_profile_tag_text(),
             font=ctk.CTkFont(size=12),
             text_color=THEME["text_muted"]
         )
@@ -362,13 +389,12 @@ class SlideNoteApp(ctk.CTk):
 
         self.ent_course = ctk.CTkEntry(
             preset_box,
-            placeholder_text="Otomatik algılanır veya yazın",
+            placeholder_text="Ders adı (otomatik algılanır veya yazın)",
             fg_color=THEME["card"],
             border_color=THEME["border"],
             text_color=THEME["text_primary"],
             height=32
         )
-        self.ent_course.insert(0, "FUNDAMENTALS OF MACHINE DESIGN")
         self.ent_course.pack(fill="x", padx=12, pady=(0, 10))
         self.ent_course.bind("<KeyRelease>", lambda e: self.update_preview_canvas())
 
@@ -421,7 +447,7 @@ class SlideNoteApp(ctk.CTk):
 
         self.lbl_spec_cover = ctk.CTkLabel(
             self.specs_frame,
-            text="Kapak: Politecnico Logosu + Başlık",
+            text="Kapak: Kurum Arması + Başlık",
             font=ctk.CTkFont(size=11),
             text_color=THEME["text_secondary"]
         )
@@ -435,9 +461,10 @@ class SlideNoteApp(ctk.CTk):
         )
         self.lbl_spec_print.pack(anchor="w", pady=3)
 
+        cur_user = str(self.cfg.get('user_name', '')).strip()
         self.lbl_spec_author = ctk.CTkLabel(
             self.specs_frame,
-            text=f"Filigran: {self.cfg.get('user_name')}",
+            text=f"Filigran: {cur_user}" if cur_user else "Filigran: Belirtilmedi",
             font=ctk.CTkFont(size=11),
             text_color=THEME["text_muted"]
         )
@@ -620,8 +647,18 @@ class SlideNoteApp(ctk.CTk):
 
         # Update text labels beside preview
         self.lbl_spec_layout.configure(text=f"Düzen: {slides} Slayt + Sağ Not Alanı")
-        cover_text = "Var (PoliTo Logosu + Başlık)" if has_cover else "Kapaksız (Doğrudan Not Sayfaları)"
+        if has_cover:
+            cpath = self.cfg.get("custom_logo_path", "")
+            if cpath and os.path.isfile(cpath):
+                cover_text = "Var (Özel Logo + Başlık)"
+            else:
+                cover_text = "Var (Kurum Arması + Başlık)"
+        else:
+            cover_text = "Kapaksız (Doğrudan Not Sayfaları)"
         self.lbl_spec_cover.configure(text=f"Kapak: {cover_text}")
+
+        user = str(self.cfg.get("user_name", "")).strip()
+        self.lbl_spec_author.configure(text=f"Filigran: {user}" if user else "Filigran: Belirtilmedi")
 
         dpi_val = self.cfg.get("dpi", 144)
         is_gray = self.cfg.get("grayscale", True)
@@ -671,13 +708,16 @@ class SlideNoteApp(ctk.CTk):
 
         self.ent_prof_name = ctk.CTkEntry(
             card_user,
+            placeholder_text="Örn: Ad Soyad",
             width=420,
             height=34,
             fg_color=THEME["raised"],
             border_color=THEME["border"],
             text_color=THEME["text_primary"]
         )
-        self.ent_prof_name.insert(0, self.cfg.get("user_name"))
+        saved_name = self.cfg.get("user_name", "")
+        if saved_name:
+            self.ent_prof_name.insert(0, saved_name)
         self.ent_prof_name.pack(anchor="w", padx=16, pady=(0, 12))
 
         # University Name
@@ -690,13 +730,16 @@ class SlideNoteApp(ctk.CTk):
 
         self.ent_prof_uni = ctk.CTkEntry(
             card_user,
+            placeholder_text="Örn: Üniversite veya Okul Adı",
             width=420,
             height=34,
             fg_color=THEME["raised"],
             border_color=THEME["border"],
             text_color=THEME["text_primary"]
         )
-        self.ent_prof_uni.insert(0, self.cfg.get("university_name"))
+        saved_uni = self.cfg.get("university_name", "")
+        if saved_uni:
+            self.ent_prof_uni.insert(0, saved_uni)
         self.ent_prof_uni.pack(anchor="w", padx=16, pady=(0, 12))
 
         # Subtitle
@@ -709,13 +752,16 @@ class SlideNoteApp(ctk.CTk):
 
         self.ent_prof_sub = ctk.CTkEntry(
             card_user,
+            placeholder_text="Örn: Lecture Notes & Study Handouts",
             width=420,
             height=34,
             fg_color=THEME["raised"],
             border_color=THEME["border"],
             text_color=THEME["text_primary"]
         )
-        self.ent_prof_sub.insert(0, self.cfg.get("subtitle"))
+        saved_sub = self.cfg.get("subtitle", "Lecture Notes & Study Handouts")
+        if saved_sub:
+            self.ent_prof_sub.insert(0, saved_sub)
         self.ent_prof_sub.pack(anchor="w", padx=16, pady=(0, 16))
 
         # Card 2: Logo Management
@@ -760,8 +806,8 @@ class SlideNoteApp(ctk.CTk):
 
         ctk.CTkButton(
             logo_btn_row,
-            text="Politecnico Logosuna Sıfırla",
-            command=self.reset_to_polito_logo,
+            text="Varsayılan Armaya Sıfırla",
+            command=self.reset_to_default_logo,
             height=34,
             fg_color=THEME["raised"],
             hover_color=THEME["raised_hover"],
@@ -788,7 +834,7 @@ class SlideNoteApp(ctk.CTk):
         cpath = self.cfg.get("custom_logo_path")
         if cpath and os.path.isfile(cpath):
             return f"Aktif Logo: Özel Görsel ({os.path.basename(cpath)})"
-        return "Aktif Logo: Politecnico di Torino (Dahili Vektörel Arma)"
+        return "Aktif Logo: Varsayılan Üniversite Arması (Dahili)"
 
     def select_custom_logo(self):
         file = filedialog.askopenfilename(
@@ -802,15 +848,24 @@ class SlideNoteApp(ctk.CTk):
             self.update_preview_canvas()
             messagebox.showinfo("Logo Güncellendi", f"Özel logo seçildi:\n{os.path.basename(file)}")
 
-    def reset_to_polito_logo(self):
+    def reset_to_default_logo(self):
         self.cfg.set("custom_logo_path", "")
         self.cfg.save()
         self.lbl_active_logo.configure(text=self.get_active_logo_label())
         self.update_preview_canvas()
-        messagebox.showinfo("Logo Sıfırlandı", "Varsayılan Politecnico di Torino logosuna dönüldü.")
+        messagebox.showinfo("Logo Sıfırlandı", "Varsayılan armaya dönüldü.")
 
     def save_profile_settings(self):
         self.cfg.set("user_name", self.ent_prof_name.get().strip())
+        self.cfg.set("university_name", self.ent_prof_uni.get().strip())
+        self.cfg.set("subtitle", self.ent_prof_sub.get().strip())
+        self.cfg.save()
+
+        self.lbl_profile_tag.configure(text=self.get_profile_tag_text())
+        cur_user = str(self.cfg.get("user_name", "")).strip()
+        self.lbl_spec_author.configure(text=f"Filigran: {cur_user}" if cur_user else "Filigran: Belirtilmedi")
+        self.update_preview_canvas()
+        messagebox.showinfo("Bilgi", "Profil ve kurum bilgileri kaydedildi.")
         self.cfg.set("university_name", self.ent_prof_uni.get().strip())
         self.cfg.set("subtitle", self.ent_prof_sub.get().strip())
         self.cfg.save()
@@ -1041,7 +1096,7 @@ class SlideNoteApp(ctk.CTk):
 
         ctk.CTkLabel(
             card,
-            text="PoliTo Slayt Not Formatlayıcı",
+            text="Slayt Not Formatlayıcı",
             font=ctk.CTkFont(size=18, weight="bold"),
             text_color=THEME["text_primary"]
         ).pack(pady=(28, 4))
@@ -1054,8 +1109,8 @@ class SlideNoteApp(ctk.CTk):
         ).pack(pady=(0, 16))
 
         desc = (
-            "Üniversite slayt sunumlarını (PDF) sağ tarafında geniş not alma alanı olan,\n"
-            "resmi üniversite armalı kapak ve bitiş sayfalarına sahip, yüksek kaliteli A4 fotokopi\n"
+            "Ders slayt sunumlarını (PDF) sağ tarafında geniş not alma alanı bulunan,\n"
+            "kurum armalı kapak ve bitiş sayfalarına sahip, yüksek kaliteli A4 fotokopi\n"
             "formatına dönüştürmek için tasarlanmıştır."
         )
         ctk.CTkLabel(
@@ -1072,8 +1127,8 @@ class SlideNoteApp(ctk.CTk):
 
         f_text = (
             "• Toplu PDF dönüştürme ve recursive klasör tarama\n"
-            "• Özel veya Politecnico di Torino logosu desteği\n"
-            "• Kalıcı öğrenci profili ve akıllı ders adı algılama\n"
+            "• Özel veya varsayılan kurum logosu desteği\n"
+            "• Kalıcı kullanıcı profili ve akıllı ders adı algılama\n"
             "• Çevrimdışı ve gizlilik odaklı mimari (hiçbir veri dışarı aktarılmaz)\n"
             "• Vektörel netlikte 144 DPI baskı optimizasyonu"
         )
@@ -1090,7 +1145,7 @@ class SlideNoteApp(ctk.CTk):
 
         ctk.CTkLabel(
             author_box,
-            text="Geliştirici: Haluk Tanrıseven (@haluked)  ·  Politecnico di Torino  ·  MIT Lisansı",
+            text="Geliştirici: Haluk Tanrıseven (@haluked)  ·  MIT Lisansı",
             font=ctk.CTkFont(size=11),
             text_color=THEME["text_muted"]
         ).pack()
@@ -1183,14 +1238,16 @@ class SlideNoteApp(ctk.CTk):
     def auto_detect_course(self):
         if self.selected_files:
             detected = detect_course_name(self.selected_files)
-            if detected != "COURSE":
+            if detected:
                 self.ent_course.delete(0, "end")
                 self.ent_course.insert(0, detected)
                 self.update_preview_canvas()
 
     def clear_files(self):
         self.selected_files = []
+        self.ent_course.delete(0, "end")
         self.update_file_list()
+        self.update_preview_canvas()
 
     def update_file_list(self):
         # Clear existing children in scrollable frame

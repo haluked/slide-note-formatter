@@ -5,11 +5,11 @@ CONFIG_DIR = os.path.expanduser("~/.slide_note_formatter")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
 
 DEFAULT_CONFIG = {
-    "user_name": "Haluk Tanrıseven",
-    "university_name": "POLITECNICO DI TORINO",
+    "user_name": "",
+    "university_name": "",
     "subtitle": "Lecture Notes & Study Handouts",
     "custom_logo_path": "",
-    "default_preset": "Bizim Model (3 Slayt + PoliTo Kapak)",
+    "default_preset": "3 Slayt (Kapaklı)",
     "slides_per_page": 3,
     "dpi": 144,
     "jpg_quality": 75,

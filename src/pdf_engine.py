@@ -6,7 +6,7 @@ def process_pdf(
     input_path,
     output_path,
     config,
-    course_name="COURSE",
+    course_name="",
     progress_callback=None,
     logo_bytes=None
 ):
@@ -31,7 +31,7 @@ def process_pdf(
     draw_border = bool(config.get("draw_border", False))
 
     author = str(config.get("user_name", "")).strip()
-    university = str(config.get("university_name", "POLITECNICO DI TORINO")).strip()
+    university = str(config.get("university_name", "")).strip()
     subtitle = str(config.get("subtitle", "Lecture Notes & Study Handouts")).strip()
     add_cover = bool(config.get("add_cover", True))
     add_end = bool(config.get("add_end", True))
@@ -56,20 +56,38 @@ def process_pdf(
 
         cov.draw_line((80, 250), (515, 250), color=(0.2, 0.2, 0.2), width=1.0)
 
+        display_course = course_name if course_name else module_text
+
         if has_arial:
-            cov.insert_textbox(fitz.Rect(80, 290, 515, 340), university, fontsize=14, fontfile=arial_bd, fontname="arialbd", align=fitz.TEXT_ALIGN_CENTER)
-            cov.insert_textbox(fitz.Rect(80, 350, 515, 420), course_name, fontsize=18, fontfile=arial_bd, fontname="arialbd", align=fitz.TEXT_ALIGN_CENTER)
-            cov.insert_textbox(fitz.Rect(80, 430, 515, 480), module_text, fontsize=14, fontfile=arial_path, fontname="arial", align=fitz.TEXT_ALIGN_CENTER)
-            cov.draw_line((180, 510), (415, 510), color=(0.6, 0.6, 0.6), width=0.5)
-            cov.insert_textbox(fitz.Rect(80, 550, 515, 590), author, fontsize=13, fontfile=arial_bd, fontname="arialbd", align=fitz.TEXT_ALIGN_CENTER)
-            cov.insert_textbox(fitz.Rect(80, 590, 515, 620), subtitle, fontsize=10, fontfile=arial_path, fontname="arial", align=fitz.TEXT_ALIGN_CENTER, fill_opacity=0.7)
+            if university:
+                cov.insert_textbox(fitz.Rect(80, 290, 515, 340), university, fontsize=14, fontfile=arial_bd, fontname="arialbd", align=fitz.TEXT_ALIGN_CENTER)
+            cov.insert_textbox(fitz.Rect(80, 350, 515, 420), display_course, fontsize=18, fontfile=arial_bd, fontname="arialbd", align=fitz.TEXT_ALIGN_CENTER)
+            if course_name and course_name != module_text:
+                cov.insert_textbox(fitz.Rect(80, 430, 515, 480), module_text, fontsize=14, fontfile=arial_path, fontname="arial", align=fitz.TEXT_ALIGN_CENTER)
+
+            if author:
+                cov.draw_line((180, 510), (415, 510), color=(0.6, 0.6, 0.6), width=0.5)
+                cov.insert_textbox(fitz.Rect(80, 550, 515, 590), author, fontsize=13, fontfile=arial_bd, fontname="arialbd", align=fitz.TEXT_ALIGN_CENTER)
+                if subtitle:
+                    cov.insert_textbox(fitz.Rect(80, 590, 515, 620), subtitle, fontsize=10, fontfile=arial_path, fontname="arial", align=fitz.TEXT_ALIGN_CENTER, fill_opacity=0.7)
+            elif subtitle:
+                cov.draw_line((180, 510), (415, 510), color=(0.6, 0.6, 0.6), width=0.5)
+                cov.insert_textbox(fitz.Rect(80, 560, 515, 600), subtitle, fontsize=11, fontfile=arial_path, fontname="arial", align=fitz.TEXT_ALIGN_CENTER, fill_opacity=0.7)
         else:
-            cov.insert_textbox(fitz.Rect(80, 290, 515, 340), university, fontsize=14, align=fitz.TEXT_ALIGN_CENTER)
-            cov.insert_textbox(fitz.Rect(80, 350, 515, 420), course_name, fontsize=18, align=fitz.TEXT_ALIGN_CENTER)
-            cov.insert_textbox(fitz.Rect(80, 430, 515, 480), module_text, fontsize=14, align=fitz.TEXT_ALIGN_CENTER)
-            cov.draw_line((180, 510), (415, 510), color=(0.6, 0.6, 0.6), width=0.5)
-            cov.insert_textbox(fitz.Rect(80, 550, 515, 590), author, fontsize=13, align=fitz.TEXT_ALIGN_CENTER)
-            cov.insert_textbox(fitz.Rect(80, 590, 515, 620), subtitle, fontsize=10, align=fitz.TEXT_ALIGN_CENTER, fill_opacity=0.7)
+            if university:
+                cov.insert_textbox(fitz.Rect(80, 290, 515, 340), university, fontsize=14, align=fitz.TEXT_ALIGN_CENTER)
+            cov.insert_textbox(fitz.Rect(80, 350, 515, 420), display_course, fontsize=18, align=fitz.TEXT_ALIGN_CENTER)
+            if course_name and course_name != module_text:
+                cov.insert_textbox(fitz.Rect(80, 430, 515, 480), module_text, fontsize=14, align=fitz.TEXT_ALIGN_CENTER)
+
+            if author:
+                cov.draw_line((180, 510), (415, 510), color=(0.6, 0.6, 0.6), width=0.5)
+                cov.insert_textbox(fitz.Rect(80, 550, 515, 590), author, fontsize=13, align=fitz.TEXT_ALIGN_CENTER)
+                if subtitle:
+                    cov.insert_textbox(fitz.Rect(80, 590, 515, 620), subtitle, fontsize=10, align=fitz.TEXT_ALIGN_CENTER, fill_opacity=0.7)
+            elif subtitle:
+                cov.draw_line((180, 510), (415, 510), color=(0.6, 0.6, 0.6), width=0.5)
+                cov.insert_textbox(fitz.Rect(80, 560, 515, 600), subtitle, fontsize=11, align=fitz.TEXT_ALIGN_CENTER, fill_opacity=0.7)
 
     # 2. SLIDES WITH NOTES
     for i in range(0, total_slides, slides_per_page):
@@ -116,18 +134,23 @@ def process_pdf(
     # 3. END PAGE
     if add_end:
         end_page = final_doc.new_page(width=A4_W, height=A4_H)
+        display_course = course_name if course_name else module_text
         if has_arial:
-            end_page.insert_textbox(fitz.Rect(80, 330, 515, 390), course_name, fontsize=16, fontfile=arial_bd, fontname="arialbd", align=fitz.TEXT_ALIGN_CENTER)
-            end_page.insert_textbox(fitz.Rect(80, 390, 515, 430), module_text, fontsize=12, fontfile=arial_path, fontname="arial", align=fitz.TEXT_ALIGN_CENTER)
+            end_page.insert_textbox(fitz.Rect(80, 330, 515, 390), display_course, fontsize=16, fontfile=arial_bd, fontname="arialbd", align=fitz.TEXT_ALIGN_CENTER)
+            if course_name and course_name != module_text:
+                end_page.insert_textbox(fitz.Rect(80, 390, 515, 430), module_text, fontsize=12, fontfile=arial_path, fontname="arial", align=fitz.TEXT_ALIGN_CENTER)
             end_page.draw_line((180, 450), (415, 450), color=(0.6, 0.6, 0.6), width=0.5)
             end_page.insert_textbox(fitz.Rect(80, 470, 515, 510), "- END OF MODULE -", fontsize=11, fontfile=arial_bd, fontname="arialbd", align=fitz.TEXT_ALIGN_CENTER)
-            end_page.insert_textbox(fitz.Rect(80, 530, 515, 570), author, fontsize=11, fontfile=arial_path, fontname="arial", align=fitz.TEXT_ALIGN_CENTER, fill_opacity=0.7)
+            if author:
+                end_page.insert_textbox(fitz.Rect(80, 530, 515, 570), author, fontsize=11, fontfile=arial_path, fontname="arial", align=fitz.TEXT_ALIGN_CENTER, fill_opacity=0.7)
         else:
-            end_page.insert_textbox(fitz.Rect(80, 330, 515, 390), course_name, fontsize=16, align=fitz.TEXT_ALIGN_CENTER)
-            end_page.insert_textbox(fitz.Rect(80, 390, 515, 430), module_text, fontsize=12, align=fitz.TEXT_ALIGN_CENTER)
+            end_page.insert_textbox(fitz.Rect(80, 330, 515, 390), display_course, fontsize=16, align=fitz.TEXT_ALIGN_CENTER)
+            if course_name and course_name != module_text:
+                end_page.insert_textbox(fitz.Rect(80, 390, 515, 430), module_text, fontsize=12, align=fitz.TEXT_ALIGN_CENTER)
             end_page.draw_line((180, 450), (415, 450), color=(0.6, 0.6, 0.6), width=0.5)
             end_page.insert_textbox(fitz.Rect(80, 470, 515, 510), "- END OF MODULE -", fontsize=11, align=fitz.TEXT_ALIGN_CENTER)
-            end_page.insert_textbox(fitz.Rect(80, 530, 515, 570), author, fontsize=11, align=fitz.TEXT_ALIGN_CENTER, fill_opacity=0.7)
+            if author:
+                end_page.insert_textbox(fitz.Rect(80, 530, 515, 570), author, fontsize=11, align=fitz.TEXT_ALIGN_CENTER, fill_opacity=0.7)
 
     final_doc.save(output_path, deflate=True)
     out_count = len(final_doc)

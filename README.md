@@ -1,11 +1,11 @@
-# 🎓 Slide Note Formatter (PoliTo Slayt Not Formatlayıcı)
+# 🎓 Slide Note Formatter (Slayt Not Formatlayıcı)
 
 <p align="center">
   <img src="assets/icon.png" width="128" height="128" alt="Slide Note Formatter Icon" />
 </p>
 
 <p align="center">
-  <strong>Üniversite ders slaytlarını sağ tarafı geniş not alma alanlı, üniversite armalı A4 fotokopi ve çalışma dokümanlarına dönüştürün.</strong>
+  <strong>Ders slaytlarını sağ tarafı geniş not alma alanlı, kurum armalı A4 fotokopi ve çalışma dokümanlarına dönüştürün.</strong>
 </p>
 
 <p align="center">
@@ -20,12 +20,12 @@
 
 ## 💡 Neden Slide Note Formatter?
 
-Üniversite derslerinde slaytları fotokopi veya tablet çıktısı alırken standart PDF okuyucular (PDF24 vb.) sayfayı ortalar veya kenarlardan eşit daraltarak sağ tarafta not alma alanı bırakmaz. 
+Üniversite ve okul derslerinde slaytları fotokopi veya tablet çıktısı alırken standart PDF okuyucular (PDF24 vb.) sayfayı ortalar veya kenarlardan eşit daraltarak sağ tarafta not alma alanı bırakmaz. 
 
-**Slide Note Formatter**, öğrencilerin ve akademisyenlerin ders sunumlarını doğrudan çalışma dokümanına dönüştürmek için özel olarak tasarlandı:
+**Slide Note Formatter**, öğrencilerin ve eğitimcilerin ders sunumlarını doğrudan çalışma dokümanına dönüştürmek için özel olarak tasarlandı:
 * **Sola Hizalı Slaytlar:** Standart A4 dikey kağıtta slaytları sol tarafa yerleştirir; zımba veya delgeç payı bırakır.
 * **Geniş Not Alma Alanı:** Sayfanın sağ tarafında boydan boya **~10.4 cm genişliğinde** temiz not alanı sağlar.
-* **Resmi Ön Kapak & Bitiş:** Politecnico di Torino veya dilediğiniz özel üniversite/şirket armasıyla, ders adı, konu ve öğrenci bilgisi içeren zarif bir ön kapak ve modül kapanış sayfası ekler.
+* **Resmi Ön Kapak & Bitiş:** Dilediğiniz üniversite veya kurum armasıyla, ders adı, konu ve öğrenci bilgisi içeren zarif bir ön kapak ve modül kapanış sayfası ekler.
 * **100% Çevrimdışı ve Güvenli:** Belgeleriniz hiçbir sunucuya yüklenmez; her şey cihazınızda yerel olarak işlenir.
 
 ---
@@ -35,8 +35,8 @@
 | Özellik | Açıklama |
 |---|---|
 | **Toplu İşlem (Batch)** | Tek bir PDF dosyasını veya klasördeki onlarca sunumu tek tıkla dönüştürün. |
-| **Kalıcı Profil Hatırlama** | Adınızı, üniversite adınızı ve alt başlığınızı kaydeder; her açılışta otomatik hatırlar. |
-| **Özel Logo Desteği** | Dahili **Politecnico di Torino** logosunu kullanabilir veya istediğiniz herhangi bir okul/kurum logosunu (`PNG`/`JPG`) seçebilirsiniz. |
+| **Kalıcı Profil Hatırlama** | Adınızı, üniversite/okul adınızı ve alt başlığınızı kaydeder; her açılışta otomatik hatırlar. |
+| **Özel Logo Desteği** | Dahili üniversite armasını kullanabilir veya istediğiniz herhangi bir okul/kurum logosunu (`PNG`/`JPG`) seçebilirsiniz. |
 | **Esnek Şablonlar (Presets)** | • 3 Slayt + Kapak (Önerilen)<br>• 2 Slayt + Kapak (Geniş aralıklar)<br>• 3 Slayt (Kapaksız)<br>• 2 Slayt (Kapaksız)<br>• 4 Slayt (Kompakt) |
 | **Baskı & Kalite Optimizasyonu** | • 144 DPI baskı netliği<br>• Grayscale (Siyah-Beyaz fotokopi için toner tasarrufu)<br>• Slayt kenarlarından 1 mm temizleme kırpması |
 | **Sayfa Filigranı** | Her sayfanın sağ üst köşesine öğrenci adını hafif opaklıkla (7 pt) yerleştirerek çıktının karışmasını önler. |
