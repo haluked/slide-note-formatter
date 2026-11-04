@@ -1,23 +1,22 @@
-# 🎓 Slide Note Formatter (Slayt Not Formatlayıcı)
+# 🎓 Slide Note Formatter (Slayt Not Formatlayıcı) v2.0
 
 <p align="center">
-  <img src="assets/icon.png" width="128" height="128" alt="Slide Note Formatter Icon" />
+  <img src="assets/icon.png" width="112" height="112" alt="Slide Note Formatter Icon" />
 </p>
 
 <p align="center">
-  <strong>Ders slaytlarını sağ tarafı geniş not alma alanlı, kurum armalı A4 fotokopi ve çalışma dokümanlarına dönüştürün.</strong>
+  <strong>Ders slayt sunumlarını sağ tarafı geniş not alma alanlı, kurum armalı A4 fotokopi dokümanlarına dönüştürün.</strong>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white" alt="Platform Windows" />
-  <img src="https://img.shields.io/badge/Language-Pure%20C%20%2F%20Win32-blue" alt="Pure C / Win32" />
-  <img src="https://img.shields.io/badge/Size-~210%20KB%20(%3C1MB)-brightgreen" alt="Binary Size" />
-  <img src="https://img.shields.io/badge/RAM-%3C%204%20MB-success" alt="RAM Usage" />
-  <img src="https://img.shields.io/badge/Engine-Vector%20Form%20XObjects-FF6F00" alt="Vector Engine" />
+  <img src="https://img.shields.io/badge/Stack-Tauri%20v2%20(Rust)%20%2B%20Tailwind%20UI-000000?logo=tauri&logoColor=white" alt="Tauri + Tailwind" />
+  <img src="https://img.shields.io/badge/Frontend-React%20%2F%20Vite%20%2F%20TypeScript-61DAFB?logo=react&logoColor=black" alt="React Vite" />
+  <img src="https://img.shields.io/badge/Styling-Tailwind%20CSS-38B2AC?logo=tailwind-css&logoColor=white" alt="Tailwind CSS" />
   <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License MIT" />
 </p>
 
-> ⚡ **Ultra-Lightweight Rewrite**: Uygulama, eski 55 MB PyInstaller paketinden tamamen bağımsız, **~210 KB** boyutunda saf C / Win32 ikili dosyası olarak yeniden yazılmıştır. Herhangi bir "tost makinesi" seviyesindeki eski bilgisayarda dahi < 10 ms içinde açılır ve anında çalışır.
+> ⚡ **v2.0 Modern Rewrite**: Uygulama, eski Tkinter masaüstü arayüzünden tamamen arındırılarak **Tauri v2 (Rust)** çekirdeği ve **Tailwind UI (React + TypeScript)** ile modern, akıcı ve yüksek performanslı bir masaüstü uygulaması olarak yeniden inşa edilmiştir.
 
 ---
 
@@ -25,11 +24,12 @@
 
 Üniversite ve okul derslerinde slaytları fotokopi veya tablet çıktısı alırken standart PDF okuyucular (PDF24 vb.) sayfayı ortalar veya kenarlardan eşit daraltarak sağ tarafta not alma alanı bırakmaz. 
 
-**Slide Note Formatter**, öğrencilerin ve eğitimcilerin ders sunumlarını doğrudan çalışma dokümanına dönüştürmek için özel olarak tasarlandı:
-* **Sola Hizalı Slaytlar:** Standart A4 dikey kağıtta slaytları sol tarafa yerleştirir; zımba veya delgeç payı bırakır.
-* **Geniş Not Alma Alanı:** Sayfanın sağ tarafında boydan boya **~10.4 cm genişliğinde** temiz not alanı sağlar.
-* **Resmi Ön Kapak & Bitiş:** Dilediğiniz üniversite veya kurum armasıyla, ders adı, konu ve öğrenci bilgisi içeren zarif bir ön kapak ve modül kapanış sayfası ekler.
-* **100% Çevrimdışı ve Güvenli:** Belgeleriniz hiçbir sunucuya yüklenmez; her şey cihazınızda yerel olarak işlenir.
+**Slide Note Formatter**, ders sunumlarını doğrudan çalışma fasikülüne dönüştürür:
+* **Sola Hizalı Slaytlar:** Standart A4 dikey kağıtta slaytları sol tarafa yerleştirir; zımba payı bırakır.
+* **Geniş Not Alma Alanı:** Sayfanın sağ tarafında boydan boya **çizgili not tutma alanı** sağlar.
+* **Resmi Ön Kapak & Bitiş:** Üniversite/kurum armasıyla, ders adı, konu ve öğrenci bilgisi içeren zarif bir ön kapak ve modül kapanış sayfası ekler.
+* **Canlı A4 Sayfa & Kapak Önizlemesi:** İşlemi başlatmadan önce hem not sayfasının hem de ön kapağın baskıda nasıl çıkacağını birebir canlı simüle eder.
+* **100% Çevrimdışı ve Güvenli:** Belgeleriniz hiçbir harici sunucuya yüklenmez; her şey cihazınızda yerel olarak işlenir.
 
 ---
 
@@ -37,59 +37,45 @@
 
 | Özellik | Açıklama |
 |---|---|
-| **Toplu İşlem (Batch)** | Tek bir PDF dosyasını veya klasördeki onlarca sunumu tek tıkla dönüştürün. |
-| **Kalıcı Profil Hatırlama** | Adınızı, üniversite/okul adınızı ve alt başlığınızı kaydeder; her açılışta otomatik hatırlar. |
-| **Özel Logo Desteği** | Dahili üniversite armasını kullanabilir veya istediğiniz herhangi bir okul/kurum logosunu (`PNG`/`JPG`) seçebilirsiniz. |
-| **Esnek Şablonlar (Presets)** | • 3 Slayt + Kapak (Önerilen)<br>• 2 Slayt + Kapak (Geniş aralıklar)<br>• 3 Slayt (Kapaksız)<br>• 2 Slayt (Kapaksız)<br>• 4 Slayt (Kompakt) |
-| **Baskı & Kalite Optimizasyonu** | • 144 DPI baskı netliği<br>• Grayscale (Siyah-Beyaz fotokopi için toner tasarrufu)<br>• Slayt kenarlarından 1 mm temizleme kırpması |
-| **Sayfa Filigranı** | Her sayfanın sağ üst köşesine öğrenci adını hafif opaklıkla (7 pt) yerleştirerek çıktının karışmasını önler. |
-| **Modern Karanlık/Aydınlık Arayüz** | Windows 11 tasarım diliyle uyumlu CustomTkinter arayüzü. |
+| **Tauri v2 + Rust Çekirdeği** | Düşük bellek tüketimi, yerel Windows dosya diyalogları ve sistemle tam entegrasyon. |
+| **Tailwind UI & Apple HIG** | Apple Human Interface Guidelines ve Emil Kowalski tasarım prensiplerine uygun modern karanlık/aydınlık arayüz. |
+| **İkili Canlı Önizleme** | `Not Sayfası` ve `Ön Kapak` arasında anında geçiş yaparak nihai tasarımı inceleyin. |
+| **Sürükle & Bırak Dosya Kuyruğu** | PDF dosyalarını doğrudan arayüze sürükleyin; tabular monospace dosya boyutlarını (`2.4 MB`) görün. |
+| **Klavye Kısayolları** | `Ctrl+O` (Dosya Ekle), `Ctrl+Shift+O` (Klasör Tara), `Ctrl+↵` (Başlat), `Esc` (Temizle/Kapat). |
+| **Akıllı Ders Adı Algılama** | Dosya adından (örn. `ELEC201`) veya üst klasör adından ders kodunu otomatik çıkarır. |
+| **Kalıcı Profil Hatırlama** | Adınızı, üniversite adınızı ve alt başlığınızı kaydeder; her açılışta hatırlar. |
+| **Baskı & Toner Optimizasyonu** | 100/144/200 DPI baskı netliği ve siyah-beyaz fotokopi için gri tonlama seçeneği. |
 
 ---
 
 ## 🚀 Başlangıç
 
-### Seçenek 1: Hazır `.exe` İle Çalıştırma (Kurulumsuz)
-Python veya kütüphane kurulumu yapmadan doğrudan çift tıklamayla kullanmak için `dist/SlideNoteFormatter.exe` dosyasını çalıştırın.
+### Seçenek 1: Bağımsız `.exe` İle Çalıştırma (Kurulumsuz)
+`dist/SlideNoteFormatter.exe` dosyasını doğrudan çalıştırabilirsiniz.
 
-### Seçenek 2: Kaynak Koddan Çalıştırma
+### Seçenek 2: Geliştirici Modunda Çalıştırma
 
-1. **Depoyu klonlayın:**
+1. **Gereksinimler:** Node.js (v18+) ve Rust (v1.75+)
+2. **Bağımlılıkları yükleyin:**
    ```bash
-   git clone https://github.com/haluked/slide-note-formatter.git
-   cd slide-note-formatter
+   npm install
    ```
-
-2. **Gereksinimleri yükleyin:**
+3. **Geliştirici modunda başlatın (Hot-reload):**
    ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Uygulamayı başlatın:**
-   ```bash
-   python src/app.py
+   npm run tauri dev
    ```
 
 ---
 
 ## 🛠️ Kendi `.exe` Dosyanızı Derleme
 
-Proje kök dizinindeki `build.bat` dosyasını çift tıklayarak çalıştırabilir veya aşağıdaki komutla derleyebilirsiniz:
+Proje kök dizinindeki `build.bat` dosyasını çift tıklayarak çalıştırabilirsiniz:
 
-```bash
-python -m PyInstaller ^
-    --noconsole ^
-    --onefile ^
-    --collect-all customtkinter ^
-    --add-data "assets\icon.ico;assets" ^
-    --add-data "assets\polito_logo.png;assets" ^
-    --icon "assets\icon.ico" ^
-    --name "SlideNoteFormatter" ^
-    --distpath "dist" ^
-    "src\app.py"
+```bat
+build.bat
 ```
 
-Derleme tamamlandığında bağımsız çalıştırılabilir dosya `dist/SlideNoteFormatter.exe` altında oluşturulur.
+Derleme tamamlandığında bağımsız Windows uygulaması `dist\SlideNoteFormatter.exe` konumunda hazır olur.
 
 ---
 
@@ -97,26 +83,25 @@ Derleme tamamlandığında bağımsız çalıştırılabilir dosya `dist/SlideNo
 
 ```
 slide-note-formatter/
-├── assets/
-│   ├── icon.ico                # Çoklu çözünürlüklü uygulama ikonu
-│   ├── icon.png                # 512x512 yüksek çözünürlüklü logo
-│   └── polito_logo.png         # Politecnico di Torino siyah-beyaz vektörel arması
-├── src/
-│   ├── app.py                  # CustomTkinter arayüzü ve olay yönetimi
-│   ├── config.py               # Kalıcı kullanıcı ayarları (~/.slide_note_formatter)
-│   ├── pdf_engine.py           # PyMuPDF (MuPDF) dönüştürme ve sayfa motoru
-│   └── assets.py               # Gömülü logo ve ikon yöneticisi
-├── .gitignore                  # Git dışlama kuralları
-├── build.bat                   # Tek tıkla Windows derleme komutu
-├── LICENSE                     # MIT Açık Kaynak Lisansı
-├── README.md                   # Dokümantasyon
-└── requirements.txt            # Python bağımlılıkları
+├── src/                  # React + TypeScript + Tailwind UI
+│   ├── App.tsx           # Ana masaüstü arayüzü ve canlı önizleme
+│   ├── index.css         # Tailwind CSS stilleri
+│   └── main.tsx          # React giriş noktası
+├── src-tauri/            # Tauri v2 (Rust) Masaüstü Çekirdeği
+│   ├── Cargo.toml        # Rust bağımlılıkları (tauri, rfd, walkdir, serde)
+│   ├── tauri.conf.json   # Pencere, güvenlik ve uygulama yapılandırması
+│   └── src/lib.rs        # IPC komutları ve worker yürütücüsü
+├── engine/               # Headless Python PDF Dönüştürme Motoru
+│   ├── worker.py         # Tauri için streaming JSON worker CLI
+│   ├── pdf_engine.py     # Yüksek kaliteli A4 not sayfası birleştirici
+│   └── assets.py         # Vektörel logo & arma varlıkları
+├── assets/               # İkonlar ve görseller
+├── build.bat             # Tek tıkla otomatik tam derleyici
+└── package.json          # Node.js bağımlılıkları ve scriptler
 ```
 
 ---
 
-## 📜 Lisans
+## 📄 Lisans
 
-Bu proje [MIT Lisansı](LICENSE) altında lisanslanmıştır. Dilediğiniz gibi kullanabilir, özelleştirebilir ve dağıtabilirsiniz.
-
-Geliştirici: **Haluk Tanrıseven** ([@haluked](https://github.com/haluked))
+Bu proje [MIT Lisansı](LICENSE) kapsamında açık kaynaklıdır. Geliştirici: **Haluk Tanrıseven** ([@haluked](https://github.com/haluked))

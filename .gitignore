@@ -5,12 +5,18 @@ __pycache__/
 *.o
 *.obj
 
-# PyInstaller
-#  Usually these files are written by a python script run from the same folder
+# Build outputs
 build/
 dist/
 *.manifest
 *.spec
+
+# Rust & Tauri
+target/
+src-tauri/target/
+
+# Node.js
+node_modules/
 
 # Local Environment & Config
 .env

@@ -2,45 +2,70 @@
 setlocal enabledelayedexpansion
 chcp 65001 >nul
 echo ========================================================
-echo   SlideNoteFormatter - Ultra-Lightweight C/Win32 Build
-echo   Target Size: ^< 1 MB (Actual: ~220 KB)
+echo   SlideNoteFormatter v2.0 (Tauri + Tailwind UI) Build
 echo ========================================================
 echo.
 
 cd /d "%~dp0"
 
-set "GCC_BIN=gcc"
-where gcc >nul 2>&1
+if exist "C:\msys64\mingw64\bin\gcc.exe" (
+    set "PATH=C:\msys64\mingw64\bin;%USERPROFILE%\.cargo\bin;%PATH%"
+) else (
+    set "PATH=%USERPROFILE%\.cargo\bin;%PATH%"
+)
+
+where cargo >nul 2>&1
 if %ERRORLEVEL% neq 0 (
-    if exist "C:\msys64\mingw64\bin\gcc.exe" (
-        set "PATH=C:\msys64\mingw64\bin;%PATH%"
-        set "GCC_BIN=C:\msys64\mingw64\bin\gcc.exe"
-    ) else (
-        echo [ERROR] MinGW GCC compiler not found.
-        if "%~1"=="/nopause" goto :eof
-        pause
-        exit /b 1
-    )
+    echo [ERROR] Rust cargo compiler not found in PATH!
+    if "%~1"=="/nopause" goto :eof
+    pause
+    exit /b 1
+)
+
+where npm >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo [ERROR] Node.js npm not found in PATH!
+    if "%~1"=="/nopause" goto :eof
+    pause
+    exit /b 1
 )
 
 if not exist "dist" mkdir "dist"
 
-echo [1/2] Compiling Windows resources (icon and version info)...
-windres src_c\res.rc -O coff -o src_c\res.o
+echo [1/3] Building Tailwind UI + React frontend...
+call npm.cmd run build
 if %ERRORLEVEL% neq 0 (
-    echo [WARNING] Resource compilation failed, continuing without resources...
-    set "RES_OBJ="
-) else (
-    set "RES_OBJ=src_c\res.o"
+    echo [ERROR] Frontend build failed!
+    if "%~1"=="/nopause" goto :eof
+    pause
+    exit /b 1
 )
 
-echo [2/2] Compiling ultra-compact C binary (O3, LTO, GC-Sections, Static)...
-gcc -O3 -s -flto -ffunction-sections -fdata-sections -Wl,--gc-sections -static -mwindows -municode src_c\main.c src_c\pdf_engine.c %RES_OBJ% -o dist\SlideNoteFormatter.exe -lz -lcomctl32 -lcomdlg32 -lshell32 -lole32 -luuid -lgdi32 -luser32
-
+echo.
+echo [2/3] Compiling Tauri v2 (Rust) executable (Release)...
+cd src-tauri
+cargo build --release
 if %ERRORLEVEL% neq 0 (
-    echo.
-    echo [ERROR] Build failed! (Error code: %ERRORLEVEL%)
-    echo.
+    echo [WARNING] Release build failed, trying debug build...
+    cargo build
+    if %ERRORLEVEL% neq 0 (
+        echo [ERROR] Rust build failed!
+        cd ..
+        if "%~1"=="/nopause" goto :eof
+        pause
+        exit /b 1
+    )
+    set "BIN_SRC=target\debug\slide-note-formatter.exe"
+) else (
+    set "BIN_SRC=target\release\slide-note-formatter.exe"
+)
+cd ..
+
+echo.
+echo [3/3] Copying binary to dist\SlideNoteFormatter.exe...
+copy /Y "src-tauri\%BIN_SRC%" "dist\SlideNoteFormatter.exe" >nul
+if %ERRORLEVEL% neq 0 (
+    echo [ERROR] Failed to copy binary to dist folder!
     if "%~1"=="/nopause" goto :eof
     pause
     exit /b 1
@@ -51,8 +76,8 @@ echo ========================================================
 echo   BUILD COMPLETED SUCCESSFULLY!
 echo   Output: dist\SlideNoteFormatter.exe
 for %%I in ("dist\SlideNoteFormatter.exe") do (
-    set /a size_kb=%%~zI/1024
-    echo   Size: %%~zI bytes (~!size_kb! KB / 0.2 MB)
+    set /a size_mb=%%~zI/1048576
+    echo   Size: %%~zI bytes (~!size_mb! MB)
 )
 echo ========================================================
 echo.
