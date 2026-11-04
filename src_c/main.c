@@ -274,7 +274,7 @@ static void do_convert() {
         if (fname) fname++; else fname = in_path;
 
         wchar_t status_msg[256];
-        swprintf(status_msg, 256, L"[%d/%d] Converting: %s", f_idx + 1, g_input_count, fname);
+        swprintf(status_msg, 256, L"[%d/%d] Converting: %ls", f_idx + 1, g_input_count, fname);
         set_status(status_msg);
         UpdateWindow(g_hwnd);
 
@@ -310,7 +310,7 @@ static void do_convert() {
         if (dot) *dot = L'\0';
 
         wchar_t out_file[MAX_PATH];
-        swprintf(out_file, MAX_PATH, L"%s\\%s_formatted.pdf", out_dir, fname_no_ext);
+        swprintf(out_file, MAX_PATH, L"%ls\\%ls_formatted.pdf", out_dir, fname_no_ext);
 
         int out_pages = 0, out_slides = 0;
         char err_msg[512] = { 0 };
@@ -343,7 +343,7 @@ static void do_convert() {
             L"Files Converted: %d\n"
             L"Total Slides: %d\n"
             L"Total Pages: %d\n\n"
-            L"Output Folder:\n%s\n\n"
+            L"Output Folder:\n%ls\n\n"
             L"Click the folder button to open the destination.",
             total_converted, total_slides_all, total_pages_all, g_last_output_dir);
         MessageBoxW(g_hwnd, success_dialog, L"Success", MB_ICONINFORMATION);
