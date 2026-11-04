@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.o
+*.obj
 
 # PyInstaller
 #  Usually these files are written by a python script run from the same folder
