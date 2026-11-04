@@ -409,8 +409,28 @@ class SlideNoteApp(ctk.CTk):
         preview_card = ctk.CTkFrame(right_col, fg_color=THEME["raised"], corner_radius=6)
         preview_card.pack(fill="x", padx=12, pady=(0, 12))
 
+        # Preview mode segmented switcher (Not Sayfası vs Ön Kapak)
+        preview_top = ctk.CTkFrame(preview_card, fg_color="transparent")
+        preview_top.pack(fill="x", padx=12, pady=(10, 4))
+
+        self.seg_preview_mode = ctk.CTkSegmentedButton(
+            preview_top,
+            values=["Not Sayfası", "Ön Kapak"],
+            command=lambda v: self.update_preview_canvas(),
+            fg_color=THEME["card"],
+            selected_color=THEME["accent"],
+            selected_hover_color=THEME["accent_hover"],
+            unselected_color=THEME["card"],
+            unselected_hover_color=THEME["raised_hover"],
+            text_color=THEME["text_primary"],
+            height=26,
+            font=ctk.CTkFont(size=11, weight="bold")
+        )
+        self.seg_preview_mode.set("Not Sayfası")
+        self.seg_preview_mode.pack(side="left")
+
         preview_inner = ctk.CTkFrame(preview_card, fg_color="transparent")
-        preview_inner.pack(fill="x", padx=12, pady=12)
+        preview_inner.pack(fill="x", padx=12, pady=(4, 12))
 
         # Tkinter Canvas representing A4 Sheet (ratio 1 : 1.414)
         self.canvas_w = 124
@@ -570,7 +590,7 @@ class SlideNoteApp(ctk.CTk):
         self.preview_canvas.delete("all")
         w, h = self.canvas_w, self.canvas_h
 
-        # Draw sheet boundary & drop shadow
+        # Draw sheet boundary with soft border
         self.preview_canvas.create_rectangle(0, 0, w, h, fill="#FFFFFF", outline="#D1D5DB", width=1)
 
         choice = self.preset_var.get()
@@ -584,6 +604,35 @@ class SlideNoteApp(ctk.CTk):
         if "Kapaksız" in choice:
             has_cover = False
 
+        mode = getattr(self, "seg_preview_mode", None)
+        active_mode = mode.get() if mode else "Not Sayfası"
+
+        if active_mode == "Ön Kapak":
+            self.draw_cover_preview(w, h, has_cover)
+        else:
+            self.draw_slides_preview(w, h, slides, has_cover)
+
+        # Update text labels beside preview
+        self.lbl_spec_layout.configure(text=f"Düzen: {slides} Slayt + Sağ Not Alanı")
+        if has_cover:
+            cpath = self.cfg.get("custom_logo_path", "")
+            if cpath and os.path.isfile(cpath):
+                cover_text = "Var (Özel Logo + Başlık)"
+            else:
+                cover_text = "Var (Kurum Arması + Başlık)"
+        else:
+            cover_text = "Kapaksız (Doğrudan Not Sayfaları)"
+        self.lbl_spec_cover.configure(text=f"Kapak: {cover_text}")
+
+        user = str(self.cfg.get("user_name", "")).strip()
+        self.lbl_spec_author.configure(text=f"Filigran: {user}" if user else "Filigran: Belirtilmedi")
+
+        dpi_val = self.cfg.get("dpi", 144)
+        is_gray = self.cfg.get("grayscale", True)
+        color_str = "Gri Tonlama" if is_gray else "Tam Renkli"
+        self.lbl_spec_print.configure(text=f"Baskı: {color_str} / {dpi_val} DPI")
+
+    def draw_slides_preview(self, w, h, slides, has_cover):
         # Header Watermark
         user_name = self.cfg.get("user_name", "")
         if user_name:
@@ -595,7 +644,6 @@ class SlideNoteApp(ctk.CTk):
                 anchor="ne"
             )
 
-        # Draw Slide slots & ruled note lines
         margin_x = 8
         slide_w = 58
         note_x0 = margin_x + slide_w + 5
@@ -645,24 +693,111 @@ class SlideNoteApp(ctk.CTk):
                     fill="#E2E8F0", width=1
                 )
 
-        # Update text labels beside preview
-        self.lbl_spec_layout.configure(text=f"Düzen: {slides} Slayt + Sağ Not Alanı")
-        if has_cover:
-            cpath = self.cfg.get("custom_logo_path", "")
-            if cpath and os.path.isfile(cpath):
-                cover_text = "Var (Özel Logo + Başlık)"
-            else:
-                cover_text = "Var (Kurum Arması + Başlık)"
-        else:
-            cover_text = "Kapaksız (Doğrudan Not Sayfaları)"
-        self.lbl_spec_cover.configure(text=f"Kapak: {cover_text}")
+    def draw_cover_preview(self, w, h, has_cover):
+        if not has_cover:
+            self.preview_canvas.create_rectangle(
+                12, 40, w - 12, h - 40,
+                fill="#F8FAFC", outline="#CBD5E1", dash=(3, 3)
+            )
+            self.preview_canvas.create_text(
+                w / 2, h / 2 - 8,
+                text="Kapak Sayfası\nDevre Dışı",
+                fill="#64748B",
+                font=("Arial", 7, "bold"),
+                justify="center"
+            )
+            self.preview_canvas.create_text(
+                w / 2, h / 2 + 16,
+                text="(Kapaksız Şablon)",
+                fill="#94A3B8",
+                font=("Arial", 6),
+                justify="center"
+            )
+            return
 
+        cx = w / 2
+
+        # 1. Top University Header
+        uni = str(self.cfg.get("university_name", "")).strip().upper()
+        if not uni:
+            uni = "ÜNİVERSİTE / KURUM"
+        if len(uni) > 18:
+            uni = uni[:16] + "..."
+        self.preview_canvas.create_text(
+            cx, 22,
+            text=uni,
+            fill="#475569",
+            font=("Arial", 6, "bold"),
+            justify="center"
+        )
+
+        # 2. Crest / Emblem Mock (Shield or Circle)
+        cy = 54
+        self.preview_canvas.create_oval(
+            cx - 14, cy - 14, cx + 14, cy + 14,
+            fill="#F1F5F9", outline="#94A3B8", width=1
+        )
+        self.preview_canvas.create_oval(
+            cx - 10, cy - 10, cx + 10, cy + 10,
+            fill="#FFFFFF", outline="#CBD5E1", width=1
+        )
+        self.preview_canvas.create_text(
+            cx, cy,
+            text="🎓",
+            font=("Segoe UI Emoji", 10),
+            justify="center"
+        )
+
+        # 3. Course Title
+        course = self.ent_course.get().strip() if hasattr(self, "ent_course") else ""
+        if not course:
+            course = "DERS ADI"
+        if len(course) > 16:
+            course = course[:14] + "..."
+        self.preview_canvas.create_text(
+            cx, 88,
+            text=course,
+            fill="#0F172A",
+            font=("Arial", 8, "bold"),
+            justify="center"
+        )
+
+        # 4. Subtitle
+        sub = str(self.cfg.get("subtitle", "Ders Notları & Çalışma Fasikülü")).strip()
+        if len(sub) > 22:
+            sub = sub[:20] + "..."
+        self.preview_canvas.create_text(
+            cx, 102,
+            text=sub,
+            fill="#64748B",
+            font=("Arial", 5),
+            justify="center"
+        )
+
+        # 5. Divider Accent
+        self.preview_canvas.create_line(
+            cx - 22, 114, cx + 22, 114,
+            fill="#CBD5E1", width=1
+        )
+
+        # 6. Author at Bottom
         user = str(self.cfg.get("user_name", "")).strip()
-        self.lbl_spec_author.configure(text=f"Filigran: {user}" if user else "Filigran: Belirtilmedi")
+        if not user:
+            user = "Öğrenci Notu"
+        if len(user) > 20:
+            user = user[:18] + "..."
 
-        dpi_val = self.cfg.get("dpi", 144)
-        is_gray = self.cfg.get("grayscale", True)
-        color_str = "Gri Tonlama" if is_gray else "Tam Renkli"
+        self.preview_canvas.create_rectangle(
+            cx - 36, 142, cx + 36, 158,
+            fill="#F8FAFC", outline="#E2E8F0", width=1
+        )
+        self.preview_canvas.create_text(
+            cx, 150,
+            text=user,
+            fill="#475569",
+            font=("Arial", 6),
+            justify="center"
+        )
         self.lbl_spec_print.configure(text=f"Baskı: {color_str} / {dpi_val} DPI")
 
     # -------------------------------------------------------------
@@ -816,9 +951,12 @@ class SlideNoteApp(ctk.CTk):
             border_color=THEME["border"]
         ).pack(side="left")
 
-        # Save Action
+        # Save Action Row
+        save_row = ctk.CTkFrame(scroll, fg_color="transparent")
+        save_row.pack(fill="x", pady=(0, 16))
+
         ctk.CTkButton(
-            scroll,
+            save_row,
             text="Profil Bilgilerini Kaydet",
             font=ctk.CTkFont(size=13, weight="bold"),
             height=38,
@@ -828,7 +966,15 @@ class SlideNoteApp(ctk.CTk):
             text_color=THEME["primary_btn_fg"],
             corner_radius=6,
             command=self.save_profile_settings
-        ).pack(anchor="w", pady=(0, 16))
+        ).pack(side="left")
+
+        self.lbl_profile_saved = ctk.CTkLabel(
+            save_row,
+            text="",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#10B981"
+        )
+        self.lbl_profile_saved.pack(side="left", padx=12)
 
     def get_active_logo_label(self):
         cpath = self.cfg.get("custom_logo_path")
@@ -846,14 +992,16 @@ class SlideNoteApp(ctk.CTk):
             self.cfg.save()
             self.lbl_active_logo.configure(text=self.get_active_logo_label())
             self.update_preview_canvas()
-            messagebox.showinfo("Logo Güncellendi", f"Özel logo seçildi:\n{os.path.basename(file)}")
+            self.lbl_profile_saved.configure(text="✓ Özel logo tanımlandı")
+            self.after(2500, lambda: self.lbl_profile_saved.configure(text=""))
 
     def reset_to_default_logo(self):
         self.cfg.set("custom_logo_path", "")
         self.cfg.save()
         self.lbl_active_logo.configure(text=self.get_active_logo_label())
         self.update_preview_canvas()
-        messagebox.showinfo("Logo Sıfırlandı", "Varsayılan armaya dönüldü.")
+        self.lbl_profile_saved.configure(text="✓ Varsayılan armaya dönüldü")
+        self.after(2500, lambda: self.lbl_profile_saved.configure(text=""))
 
     def save_profile_settings(self):
         self.cfg.set("user_name", self.ent_prof_name.get().strip())
@@ -865,15 +1013,10 @@ class SlideNoteApp(ctk.CTk):
         cur_user = str(self.cfg.get("user_name", "")).strip()
         self.lbl_spec_author.configure(text=f"Filigran: {cur_user}" if cur_user else "Filigran: Belirtilmedi")
         self.update_preview_canvas()
-        messagebox.showinfo("Bilgi", "Profil ve kurum bilgileri kaydedildi.")
-        self.cfg.set("university_name", self.ent_prof_uni.get().strip())
-        self.cfg.set("subtitle", self.ent_prof_sub.get().strip())
-        self.cfg.save()
 
-        self.lbl_profile_tag.configure(text=f"{self.cfg.get('user_name')}  ·  {self.cfg.get('university_name')}")
-        self.lbl_spec_author.configure(text=f"Filigran: {self.cfg.get('user_name')}")
-        self.update_preview_canvas()
-        messagebox.showinfo("Bilgi", "Profil ve üniversite ayarları kaydedildi.")
+        # Non-blocking inline feedback (Apple HIG & Emil Kowalski)
+        self.lbl_profile_saved.configure(text="✓ Değişiklikler kaydedildi")
+        self.after(2500, lambda: self.lbl_profile_saved.configure(text=""))
 
     # -------------------------------------------------------------
     # TAB 3: PRINT & OUTPUT SETTINGS
@@ -1041,9 +1184,12 @@ class SlideNoteApp(ctk.CTk):
             self.seg_theme.set("Karanlık")
         self.seg_theme.pack(anchor="w", padx=16, pady=(0, 16))
 
-        # Save Button
+        # Save Button Row
+        save_row = ctk.CTkFrame(scroll, fg_color="transparent")
+        save_row.pack(fill="x", pady=(0, 16))
+
         ctk.CTkButton(
-            scroll,
+            save_row,
             text="Baskı Tercihlerini Kaydet",
             font=ctk.CTkFont(size=13, weight="bold"),
             height=38,
@@ -1053,7 +1199,15 @@ class SlideNoteApp(ctk.CTk):
             text_color=THEME["primary_btn_fg"],
             corner_radius=6,
             command=self.save_advanced_settings
-        ).pack(anchor="w", pady=(0, 16))
+        ).pack(side="left")
+
+        self.lbl_settings_saved = ctk.CTkLabel(
+            save_row,
+            text="",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#10B981"
+        )
+        self.lbl_settings_saved.pack(side="left", padx=12)
 
     def on_theme_changed(self, value):
         mode_map = {"Karanlık": "dark", "Aydınlık": "light", "Sistem": "system"}
@@ -1077,7 +1231,10 @@ class SlideNoteApp(ctk.CTk):
         self.cfg.set("add_end", bool(self.switch_end.get()))
         self.cfg.save()
         self.update_preview_canvas()
-        messagebox.showinfo("Bilgi", "Görsel ve baskı tercihleri kaydedildi.")
+
+        # Non-blocking inline feedback (Apple HIG & Emil Kowalski)
+        self.lbl_settings_saved.configure(text="✓ Değişiklikler kaydedildi")
+        self.after(2500, lambda: self.lbl_settings_saved.configure(text=""))
 
     # -------------------------------------------------------------
     # TAB 4: ABOUT
@@ -1258,22 +1415,67 @@ class SlideNoteApp(ctk.CTk):
         self.lbl_file_count.configure(text=f"{count} dosya")
 
         if count == 0:
-            empty_frame = ctk.CTkFrame(self.file_list_frame, fg_color="transparent")
-            empty_frame.pack(fill="both", expand=True, pady=40)
+            # Actionable Empty State (Emil Kowalski & Apple HIG Principle)
+            empty_frame = ctk.CTkFrame(
+                self.file_list_frame,
+                fg_color=THEME["card"],
+                corner_radius=8,
+                border_width=1,
+                border_color=THEME["card_border"]
+            )
+            empty_frame.pack(fill="both", expand=True, padx=8, pady=32)
 
             ctk.CTkLabel(
                 empty_frame,
-                text="İşlenecek PDF dosyası bulunmuyor",
+                text="📄",
+                font=ctk.CTkFont(size=24)
+            ).pack(pady=(20, 6))
+
+            ctk.CTkLabel(
+                empty_frame,
+                text="İşlenecek PDF Dosyası Yok",
                 font=ctk.CTkFont(size=13, weight="bold"),
-                text_color=THEME["text_secondary"]
-            ).pack(pady=(0, 4))
+                text_color=THEME["text_primary"]
+            ).pack(pady=(0, 2))
 
             ctk.CTkLabel(
                 empty_frame,
-                text="Dosya veya klasör seçerek kuyruğa ekleyin",
-                font=ctk.CTkFont(size=12),
+                text="Dönüştürmek istediğiniz sunumları ekleyin veya tarayın.",
+                font=ctk.CTkFont(size=11),
                 text_color=THEME["text_muted"]
-            ).pack()
+            ).pack(pady=(0, 14))
+
+            # Actionable on-ramp buttons
+            empty_actions = ctk.CTkFrame(empty_frame, fg_color="transparent")
+            empty_actions.pack(pady=(0, 20))
+
+            ctk.CTkButton(
+                empty_actions,
+                text="+ Dosya Seç",
+                command=self.add_files,
+                width=100,
+                height=30,
+                fg_color=THEME["primary_btn_bg"],
+                hover_color=THEME["primary_btn_hover"],
+                text_color=THEME["primary_btn_fg"],
+                font=ctk.CTkFont(size=11, weight="bold"),
+                corner_radius=6
+            ).pack(side="left", padx=4)
+
+            ctk.CTkButton(
+                empty_actions,
+                text="Klasör Tara",
+                command=self.add_folder,
+                width=100,
+                height=30,
+                fg_color=THEME["raised"],
+                hover_color=THEME["raised_hover"],
+                text_color=THEME["text_primary"],
+                border_width=1,
+                border_color=THEME["border"],
+                font=ctk.CTkFont(size=11),
+                corner_radius=6
+            ).pack(side="left", padx=4)
         else:
             for idx, fpath in enumerate(self.selected_files, 1):
                 row = ctk.CTkFrame(
@@ -1317,19 +1519,45 @@ class SlideNoteApp(ctk.CTk):
                     anchor="w"
                 ).pack(fill="x")
 
+                # File size badge with tabular monospace figures (Emil Kowalski principle)
+                try:
+                    fsize = os.path.getsize(fpath)
+                    if fsize >= 1024 * 1024:
+                        size_str = f"{fsize / (1024 * 1024):.1f} MB"
+                    else:
+                        size_str = f"{max(1, fsize // 1024)} KB"
+                except Exception:
+                    size_str = "PDF"
+
+                size_badge = ctk.CTkFrame(
+                    row,
+                    fg_color=THEME["raised"],
+                    corner_radius=4,
+                    border_width=1,
+                    border_color=THEME["border"]
+                )
+                size_badge.pack(side="right", padx=(4, 6))
+
+                ctk.CTkLabel(
+                    size_badge,
+                    text=size_str,
+                    font=ctk.CTkFont(family="Consolas", size=10),
+                    text_color=THEME["text_secondary"]
+                ).pack(padx=6, pady=2)
+
                 # Remove button (×)
                 btn_remove = ctk.CTkButton(
                     row,
                     text="×",
-                    width=28,
-                    height=28,
+                    width=26,
+                    height=26,
                     fg_color="transparent",
                     hover_color=THEME["raised_hover"],
                     text_color=THEME["text_muted"],
                     font=ctk.CTkFont(size=14),
                     command=lambda p=fpath: self.remove_file(p)
                 )
-                btn_remove.pack(side="right", padx=6)
+                btn_remove.pack(side="right", padx=(0, 2))
 
     def start_conversion(self):
         if not self.selected_files:
