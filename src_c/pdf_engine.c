@@ -1,4 +1,5 @@
 #define _CRT_SECURE_NO_WARNINGS
+#include <windows.h>
 #include "pdf_engine.h"
 
 #include <stdio.h>
@@ -1116,9 +1117,9 @@ static double get_helvetica_text_width(const char *text, double font_size) {
 /* -------------------------------------------------------------
  * Main PDF Processor & Imposer
  * ------------------------------------------------------------- */
-int process_pdf_file(
-    const char *input_path,
-    const char *output_path,
+int process_pdf_file_w(
+    const wchar_t *input_path,
+    const wchar_t *output_path,
     const PDFEngineConfig *config,
     PDFProgressCallback progress_cb,
     void *user_data,
@@ -1132,9 +1133,9 @@ int process_pdf_file(
         return 1;
     }
 
-    FILE *f_in = fopen(input_path, "rb");
+    FILE *f_in = _wfopen(input_path, L"rb");
     if (!f_in) {
-        if (error_msg) snprintf(error_msg, error_msg_size, "Could not open input PDF: %s", input_path);
+        if (error_msg) snprintf(error_msg, error_msg_size, "Could not open input PDF file.");
         return 2;
     }
 
@@ -1206,12 +1207,12 @@ int process_pdf_file(
     const char *author = (config && config->author_name) ? config->author_name : "";
     const char *university = (config && config->university) ? config->university : "";
 
-    FILE *f_out = fopen(output_path, "wb");
+    FILE *f_out = _wfopen(output_path, L"wb");
     if (!f_out) {
         pagelist_free(&page_list);
         doc_free(&doc);
         free(in_data);
-        if (error_msg) snprintf(error_msg, error_msg_size, "Could not open output PDF for writing: %s", output_path);
+        if (error_msg) snprintf(error_msg, error_msg_size, "Could not open output PDF for writing.");
         return 9;
     }
 
@@ -1560,4 +1561,22 @@ int process_pdf_file(
     free(in_data);
 
     return 0;
+}
+
+int process_pdf_file(
+    const char *input_path,
+    const char *output_path,
+    const PDFEngineConfig *config,
+    PDFProgressCallback progress_cb,
+    void *user_data,
+    int *out_pages,
+    int *out_slides,
+    char *error_msg,
+    size_t error_msg_size
+) {
+    wchar_t in_w[1024] = { 0 };
+    wchar_t out_w[1024] = { 0 };
+    if (input_path) MultiByteToWideChar(CP_UTF8, 0, input_path, -1, in_w, 1024);
+    if (output_path) MultiByteToWideChar(CP_UTF8, 0, output_path, -1, out_w, 1024);
+    return process_pdf_file_w(in_w, out_w, config, progress_cb, user_data, out_pages, out_slides, error_msg, error_msg_size);
 }

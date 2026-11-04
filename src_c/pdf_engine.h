@@ -2,6 +2,7 @@
 #define PDF_ENGINE_H
 
 #include <stddef.h>
+#include <wchar.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,12 +23,22 @@ typedef struct {
 /* Progress callback: current_slide (0-based), total_slides */
 typedef void (*PDFProgressCallback)(int current_slide, int total_slides, void *user_data);
 
-/* Process an input PDF and generate the formatted handout PDF.
+/* Process an input PDF with wide-character (Unicode) file paths.
    Returns 0 on success, non-zero error code on failure.
-   If out_pages is non-NULL, writes the number of output pages generated.
-   If out_slides is non-NULL, writes the number of input slides processed.
-   If error_msg is non-NULL and error_msg_size > 0, writes an error description on failure.
 */
+int process_pdf_file_w(
+    const wchar_t *input_path,
+    const wchar_t *output_path,
+    const PDFEngineConfig *config,
+    PDFProgressCallback progress_cb,
+    void *user_data,
+    int *out_pages,
+    int *out_slides,
+    char *error_msg,
+    size_t error_msg_size
+);
+
+/* UTF-8 convenience wrapper */
 int process_pdf_file(
     const char *input_path,
     const char *output_path,

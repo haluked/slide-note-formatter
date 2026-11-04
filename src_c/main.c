@@ -11,24 +11,23 @@
 #define ID_BTN_BROWSE       101
 #define ID_BTN_CONVERT      102
 #define ID_BTN_OPEN_FOLDER  103
-#define ID_EDT_INPUT        104
+#define ID_LST_FILES        104
 #define ID_CMB_SLIDES       105
-#define ID_CHK_LINES        106
-#define ID_CHK_BORDER       107
-#define ID_CHK_COVER        108
-#define ID_CHK_END          109
-#define ID_EDT_COURSE       110
-#define ID_EDT_MODULE       111
-#define ID_EDT_AUTHOR       112
-#define ID_EDT_UNI          113
-#define ID_CHK_SUBFOLDER    114
-#define ID_EDT_OUTDIR       115
-#define ID_BTN_BROWSE_OUT   116
+#define ID_CHK_BORDER       106
+#define ID_CHK_COVER        107
+#define ID_CHK_END          108
+#define ID_EDT_COURSE       109
+#define ID_EDT_MODULE       110
+#define ID_EDT_AUTHOR       111
+#define ID_EDT_UNI          112
+#define ID_CHK_SUBFOLDER    113
+#define ID_EDT_OUTDIR       114
+#define ID_BTN_BROWSE_OUT   115
+#define ID_BTN_CLEAR        116
 
 static HWND g_hwnd = NULL;
-static HWND g_hInput = NULL;
+static HWND g_hListFiles = NULL;
 static HWND g_hCmbSlides = NULL;
-static HWND g_hChkLines = NULL;
 static HWND g_hChkBorder = NULL;
 static HWND g_hChkCover = NULL;
 static HWND g_hChkEnd = NULL;
@@ -60,10 +59,17 @@ static void clear_input_files() {
     g_input_files = NULL;
     g_input_count = 0;
     g_input_capacity = 0;
+    if (g_hListFiles) {
+        SendMessage(g_hListFiles, LB_RESETCONTENT, 0, 0);
+    }
 }
 
 static void add_input_file(const wchar_t *path) {
     if (!path || !*path) return;
+    /* Avoid duplicates */
+    for (int i = 0; i < g_input_count; i++) {
+        if (_wcsicmp(g_input_files[i], path) == 0) return;
+    }
     if (g_input_count >= g_input_capacity) {
         int ncap = g_input_capacity ? g_input_capacity * 2 : 16;
         wchar_t **p = (wchar_t **)realloc(g_input_files, ncap * sizeof(wchar_t *));
@@ -72,6 +78,15 @@ static void add_input_file(const wchar_t *path) {
         g_input_capacity = ncap;
     }
     g_input_files[g_input_count++] = _wcsdup(path);
+
+    /* Show just filename in the listbox */
+    const wchar_t *fname = wcsrchr(path, L'\\');
+    if (!fname) fname = wcsrchr(path, L'/');
+    if (fname) fname++; else fname = path;
+
+    if (g_hListFiles) {
+        SendMessageW(g_hListFiles, LB_ADDSTRING, 0, (LPARAM)fname);
+    }
 }
 
 static void set_status(const wchar_t *text) {
@@ -82,18 +97,15 @@ static void set_status(const wchar_t *text) {
 
 static void update_input_display() {
     if (g_input_count == 0) {
-        SetWindowTextW(g_hInput, L"");
-        set_status(L"PDF dosyalari surukleyip birakin veya Gozat ile secin.");
+        set_status(L"Ready. Select or drag PDF files to start.");
         EnableWindow(g_hBtnConvert, FALSE);
     } else if (g_input_count == 1) {
-        SetWindowTextW(g_hInput, g_input_files[0]);
-        set_status(L"1 PDF secildi. Donusturmeye hazir.");
+        set_status(L"1 file selected. Ready to convert.");
         EnableWindow(g_hBtnConvert, TRUE);
     } else {
         wchar_t buf[128];
-        swprintf(buf, 128, L"%d PDF dosyasi secildi (Toplu Donusturme)", g_input_count);
-        SetWindowTextW(g_hInput, buf);
-        set_status(L"Toplu islem icin hazir. Donustur butonuna basin.");
+        swprintf(buf, 128, L"%d files selected. Ready to convert.", g_input_count);
+        set_status(buf);
         EnableWindow(g_hBtnConvert, TRUE);
     }
 }
@@ -144,29 +156,34 @@ static void on_browse() {
     memset(&ofn, 0, sizeof(ofn));
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = g_hwnd;
-    ofn.lpstrFilter = L"PDF Sunum Dosyalari (*.pdf)\0*.pdf\0Tum Dosyalar (*.*)\0*.*\0";
+    ofn.lpstrFilter = L"PDF Documents (*.pdf)\0*.pdf\0All Files (*.*)\0*.*\0";
     ofn.lpstrFile = szBuffer;
     ofn.nMaxFile = 65535;
     ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_ALLOWMULTISELECT | OFN_EXPLORER;
-    ofn.lpstrTitle = L"Ders Slayti PDF Dosyalarini Secin (Coklu Secim Yapilabilir)";
+    ofn.lpstrTitle = L"Select PDF File(s)";
 
     if (GetOpenFileNameW(&ofn)) {
-        clear_input_files();
-
         wchar_t *p = szBuffer;
-        wchar_t dir[MAX_PATH];
+        wchar_t dir[MAX_PATH] = { 0 };
         wcsncpy(dir, p, MAX_PATH - 1);
         p += wcslen(p) + 1;
 
         if (*p == L'\0') {
-            /* Single file */
+            /* Single file selected: dir contains full path */
             add_input_file(dir);
             auto_detect_names(dir);
         } else {
-            /* Multiple files */
+            /* Multiple files selected */
+            size_t dlen = wcslen(dir);
+            int has_slash = (dlen > 0 && (dir[dlen - 1] == L'\\' || dir[dlen - 1] == L'/'));
+
             while (*p) {
                 wchar_t full_path[MAX_PATH];
-                swprintf(full_path, MAX_PATH, L"%s\\%s", dir, p);
+                if (has_slash) {
+                    swprintf(full_path, MAX_PATH, L"%s%s", dir, p);
+                } else {
+                    swprintf(full_path, MAX_PATH, L"%s\\%s", dir, p);
+                }
                 add_input_file(full_path);
                 p += wcslen(p) + 1;
             }
@@ -183,7 +200,7 @@ static void on_browse_output_dir() {
     BROWSEINFOW bi;
     memset(&bi, 0, sizeof(bi));
     bi.hwndOwner = g_hwnd;
-    bi.lpszTitle = L"Cikti Klasorunu Secin:";
+    bi.lpszTitle = L"Select Output Folder:";
     bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
 
     PIDLIST_ABSOLUTE pidl = SHBrowseForFolderW(&bi);
@@ -198,19 +215,17 @@ static void on_browse_output_dir() {
 
 static void do_convert() {
     if (g_input_count == 0) {
-        MessageBoxW(g_hwnd, L"Lutfen once en az bir PDF dosyasi secin veya surukleyip birakin.", L"Uyari", MB_ICONWARNING);
+        MessageBoxW(g_hwnd, L"Please select or drag at least one PDF file first.", L"Warning", MB_ICONWARNING);
         return;
     }
 
     EnableWindow(g_hBtnConvert, FALSE);
     ShowWindow(g_hBtnOpenFolder, SW_HIDE);
 
-    /* Output folder settings */
     int use_subfolder = (SendMessage(g_hChkSubfolder, BM_GETCHECK, 0, 0) == BST_CHECKED);
     wchar_t custom_out_dir[MAX_PATH] = { 0 };
     GetWindowTextW(g_hEdtOutDir, custom_out_dir, MAX_PATH);
 
-    /* Configuration */
     PDFEngineConfig cfg;
     memset(&cfg, 0, sizeof(cfg));
 
@@ -219,7 +234,7 @@ static void do_convert() {
     else if (sel == 2) cfg.slides_per_page = 4;
     else cfg.slides_per_page = 3;
 
-    cfg.draw_note_lines = (SendMessage(g_hChkLines, BM_GETCHECK, 0, 0) == BST_CHECKED);
+    cfg.draw_note_lines = 0; /* Option removed as requested: clean empty space on right */
     cfg.draw_border = (SendMessage(g_hChkBorder, BM_GETCHECK, 0, 0) == BST_CHECKED);
     cfg.add_cover = (SendMessage(g_hChkCover, BM_GETCHECK, 0, 0) == BST_CHECKED);
     cfg.add_end = (SendMessage(g_hChkEnd, BM_GETCHECK, 0, 0) == BST_CHECKED);
@@ -251,8 +266,12 @@ static void do_convert() {
     for (int f_idx = 0; f_idx < g_input_count; f_idx++) {
         const wchar_t *in_path = g_input_files[f_idx];
 
+        const wchar_t *fname = wcsrchr(in_path, L'\\');
+        if (!fname) fname = wcsrchr(in_path, L'/');
+        if (fname) fname++; else fname = in_path;
+
         wchar_t status_msg[256];
-        swprintf(status_msg, 256, L"[%d/%d] Donusturuluyor: %s", f_idx + 1, g_input_count, wcsrchr(in_path, L'\\') ? wcsrchr(in_path, L'\\') + 1 : in_path);
+        swprintf(status_msg, 256, L"[%d/%d] Converting: %s", f_idx + 1, g_input_count, fname);
         set_status(status_msg);
         UpdateWindow(g_hwnd);
 
@@ -263,9 +282,9 @@ static void do_convert() {
             if (!slash) slash = wcsrchr(in_path, L'/');
             if (slash) {
                 wcsncpy(out_dir, in_path, slash - in_path);
-                wcsncat(out_dir, L"\\_notlar", MAX_PATH - wcslen(out_dir) - 1);
+                wcsncat(out_dir, L"\\_formatted", MAX_PATH - wcslen(out_dir) - 1);
             } else {
-                wcsncpy(out_dir, L"_notlar", MAX_PATH - 1);
+                wcsncpy(out_dir, L"_formatted", MAX_PATH - 1);
             }
         } else if (custom_out_dir[0]) {
             wcsncpy(out_dir, custom_out_dir, MAX_PATH - 1);
@@ -283,27 +302,20 @@ static void do_convert() {
         wcsncpy(g_last_output_dir, out_dir, MAX_PATH - 1);
 
         /* Construct output filename */
-        const wchar_t *fname = wcsrchr(in_path, L'\\');
-        if (!fname) fname = wcsrchr(in_path, L'/');
-        if (fname) fname++; else fname = in_path;
-
         wchar_t fname_no_ext[MAX_PATH];
         wcsncpy(fname_no_ext, fname, MAX_PATH - 1);
+        fname_no_ext[MAX_PATH - 1] = L'\0';
         wchar_t *dot = wcsrchr(fname_no_ext, L'.');
         if (dot) *dot = L'\0';
 
         wchar_t out_file[MAX_PATH];
-        swprintf(out_file, MAX_PATH, L"%s\\%s_notlar.pdf", out_dir, fname_no_ext);
-
-        char in_u8[MAX_PATH * 3] = { 0 };
-        char out_u8[MAX_PATH * 3] = { 0 };
-        WideCharToMultiByte(CP_UTF8, 0, in_path, -1, in_u8, sizeof(in_u8), NULL, NULL);
-        WideCharToMultiByte(CP_UTF8, 0, out_file, -1, out_u8, sizeof(out_u8), NULL, NULL);
+        swprintf(out_file, MAX_PATH, L"%s\\%s_formatted.pdf", out_dir, fname_no_ext);
 
         int out_pages = 0, out_slides = 0;
         char err_msg[512] = { 0 };
 
-        int res = process_pdf_file(in_u8, out_u8, &cfg, NULL, NULL, &out_pages, &out_slides, err_msg, sizeof(err_msg));
+        /* Call wide-char Unicode function directly */
+        int res = process_pdf_file_w(in_path, out_file, &cfg, NULL, NULL, &out_pages, &out_slides, err_msg, sizeof(err_msg));
         if (res == 0) {
             total_converted++;
             total_slides_all += out_slides;
@@ -311,7 +323,7 @@ static void do_convert() {
         } else {
             wchar_t err_w[512];
             MultiByteToWideChar(CP_UTF8, 0, err_msg, -1, err_w, 512);
-            MessageBoxW(g_hwnd, err_w, L"Hata", MB_ICONERROR);
+            MessageBoxW(g_hwnd, err_w, L"Error", MB_ICONERROR);
         }
     }
 
@@ -319,7 +331,7 @@ static void do_convert() {
 
     if (total_converted > 0) {
         wchar_t done_msg[256];
-        swprintf(done_msg, 256, L"Tamamlandi! %d dosya (%d slayt -> %d sayfa) hazirlandi.", total_converted, total_slides_all, total_pages_all);
+        swprintf(done_msg, 256, L"Done! %d file(s) converted (%d slides -> %d pages).", total_converted, total_slides_all, total_pages_all);
         set_status(done_msg);
 
         ShowWindow(g_hBtnOpenFolder, SW_SHOW);
@@ -327,14 +339,14 @@ static void do_convert() {
 
         wchar_t success_dialog[512];
         swprintf(success_dialog, 512,
-            L"Donusturme Basariyla Tamamlandi!\n\n"
-            L"Donusturulen Dosya: %d\n"
-            L"Toplam Slayt: %d\n"
-            L"Cikti Sayfasi: %d\n\n"
-            L"Klasor: %s\n\n"
-            L"Klasoru acmak icin sagdaki kucuk klasor butonuna tiklayabilirsiniz.",
+            L"Conversion Completed Successfully!\n\n"
+            L"Files Converted: %d\n"
+            L"Total Slides: %d\n"
+            L"Total Pages: %d\n\n"
+            L"Output Folder:\n%s\n\n"
+            L"Click the folder button to open the destination.",
             total_converted, total_slides_all, total_pages_all, g_last_output_dir);
-        MessageBoxW(g_hwnd, success_dialog, L"Islem Basarili", MB_ICONINFORMATION);
+        MessageBoxW(g_hwnd, success_dialog, L"Success", MB_ICONINFORMATION);
     }
 }
 
@@ -355,132 +367,130 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                                       CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI Emoji");
 
             /* Header Label */
-            HWND hHdr = CreateWindowW(L"STATIC", L"Ders sunum PDF dosyasini (veya birden fazla dosyayi) secin:",
-                                      WS_CHILD | WS_VISIBLE, 20, 12, 520, 20, hwnd, NULL, NULL, NULL);
+            HWND hHdr = CreateWindowW(L"STATIC", L"Select or Drag PDF(s):",
+                                      WS_CHILD | WS_VISIBLE, 20, 12, 350, 18, hwnd, NULL, NULL, NULL);
             SendMessage(hHdr, WM_SETFONT, (WPARAM)g_hFontBold, TRUE);
 
-            /* Input File Box */
-            g_hInput = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"",
-                                       WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | ES_READONLY,
-                                       20, 34, 430, 26, hwnd, (HMENU)ID_EDT_INPUT, NULL, NULL);
-            SendMessage(g_hInput, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            /* Files ListBox */
+            g_hListFiles = CreateWindowExW(WS_EX_CLIENTEDGE, L"LISTBOX", L"",
+                                           WS_CHILD | WS_VISIBLE | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | LBS_HASSTRINGS,
+                                           20, 32, 420, 75, hwnd, (HMENU)ID_LST_FILES, NULL, NULL);
+            SendMessage(g_hListFiles, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
-            HWND hBtnBrowse = CreateWindowW(L"BUTTON", L"Gözat...",
+            HWND hBtnBrowse = CreateWindowW(L"BUTTON", L"Browse...",
                                             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-                                            460, 33, 80, 28, hwnd, (HMENU)ID_BTN_BROWSE, NULL, NULL);
+                                            450, 32, 85, 34, hwnd, (HMENU)ID_BTN_BROWSE, NULL, NULL);
             SendMessage(hBtnBrowse, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
-            /* Group 1: Output Location */
-            HWND hGrpOut = CreateWindowW(L"BUTTON", L"Cikti Klasoru Ayarlari",
+            HWND hBtnClear = CreateWindowW(L"BUTTON", L"Clear",
+                                           WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+                                           450, 72, 85, 34, hwnd, (HMENU)ID_BTN_CLEAR, NULL, NULL);
+            SendMessage(hBtnClear, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+
+            /* Group 1: Output Folder */
+            HWND hGrpOut = CreateWindowW(L"BUTTON", L"Output Folder",
                                          WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-                                         20, 72, 520, 92, hwnd, NULL, NULL, NULL);
+                                         20, 118, 515, 88, hwnd, NULL, NULL, NULL);
             SendMessage(hGrpOut, WM_SETFONT, (WPARAM)g_hFontBold, TRUE);
 
-            g_hChkSubfolder = CreateWindowW(L"BUTTON", L"Ciktilari ayni dizindeki alt klasore kaydet (_notlar)",
+            g_hChkSubfolder = CreateWindowW(L"BUTTON", L"Save to subfolder (_formatted)",
                                            WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-                                           35, 95, 480, 22, hwnd, (HMENU)ID_CHK_SUBFOLDER, NULL, NULL);
+                                           35, 140, 400, 22, hwnd, (HMENU)ID_CHK_SUBFOLDER, NULL, NULL);
             SendMessage(g_hChkSubfolder, WM_SETFONT, (WPARAM)g_hFont, TRUE);
-            SendMessage(g_hChkSubfolder, BM_SETCHECK, BST_CHECKED, 0);
+            SendMessage(g_hChkSubfolder, BM_SETCHECK, BST_CHECKED, 0); /* DEFAULT: CHECKED */
 
-            HWND hLblCustomOut = CreateWindowW(L"STATIC", L"Ozel Cikti Klasoru:",
-                                              WS_CHILD | WS_VISIBLE, 35, 128, 120, 20, hwnd, NULL, NULL, NULL);
+            HWND hLblCustomOut = CreateWindowW(L"STATIC", L"Custom folder:",
+                                              WS_CHILD | WS_VISIBLE, 35, 170, 100, 20, hwnd, NULL, NULL, NULL);
             SendMessage(hLblCustomOut, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
             g_hEdtOutDir = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"",
                                            WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | WS_DISABLED,
-                                           160, 125, 320, 24, hwnd, (HMENU)ID_EDT_OUTDIR, NULL, NULL);
+                                           140, 168, 325, 24, hwnd, (HMENU)ID_EDT_OUTDIR, NULL, NULL);
             SendMessage(g_hEdtOutDir, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
             g_hBtnBrowseOut = CreateWindowW(L"BUTTON", L"...",
                                             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | WS_DISABLED,
-                                            490, 124, 40, 26, hwnd, (HMENU)ID_BTN_BROWSE_OUT, NULL, NULL);
+                                            475, 167, 45, 26, hwnd, (HMENU)ID_BTN_BROWSE_OUT, NULL, NULL);
             SendMessage(g_hBtnBrowseOut, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
-            /* Group 2: Format Options */
-            HWND hGrp1 = CreateWindowW(L"BUTTON", L"Sayfa Duzen Ayarlari",
+            /* Group 2: Layout */
+            HWND hGrp1 = CreateWindowW(L"BUTTON", L"Layout",
                                        WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-                                       20, 175, 520, 90, hwnd, NULL, NULL, NULL);
+                                       20, 218, 515, 72, hwnd, NULL, NULL, NULL);
             SendMessage(hGrp1, WM_SETFONT, (WPARAM)g_hFontBold, TRUE);
 
-            HWND hLblSlides = CreateWindowW(L"STATIC", L"Sayfa Basina Slayt:",
-                                           WS_CHILD | WS_VISIBLE, 35, 198, 130, 20, hwnd, NULL, NULL, NULL);
+            HWND hLblSlides = CreateWindowW(L"STATIC", L"Slides per page:",
+                                           WS_CHILD | WS_VISIBLE, 35, 243, 110, 20, hwnd, NULL, NULL, NULL);
             SendMessage(hLblSlides, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
             g_hCmbSlides = CreateWindowW(L"COMBOBOX", L"",
                                          WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
-                                         170, 195, 190, 120, hwnd, (HMENU)ID_CMB_SLIDES, NULL, NULL);
+                                         150, 240, 150, 120, hwnd, (HMENU)ID_CMB_SLIDES, NULL, NULL);
             SendMessage(g_hCmbSlides, WM_SETFONT, (WPARAM)g_hFont, TRUE);
-            SendMessage(g_hCmbSlides, CB_ADDSTRING, 0, (LPARAM)L"3 Slayt (Onerilen)");
-            SendMessage(g_hCmbSlides, CB_ADDSTRING, 0, (LPARAM)L"2 Slayt (Genis Not)");
-            SendMessage(g_hCmbSlides, CB_ADDSTRING, 0, (LPARAM)L"4 Slayt (Kompakt)");
+            SendMessage(g_hCmbSlides, CB_ADDSTRING, 0, (LPARAM)L"3 Slides");
+            SendMessage(g_hCmbSlides, CB_ADDSTRING, 0, (LPARAM)L"2 Slides");
+            SendMessage(g_hCmbSlides, CB_ADDSTRING, 0, (LPARAM)L"4 Slides");
             SendMessage(g_hCmbSlides, CB_SETCURSEL, 0, 0);
 
-            g_hChkLines = CreateWindowW(L"BUTTON", L"Sag tarafa cizgili not alani ekle",
-                                        WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-                                        35, 230, 230, 22, hwnd, (HMENU)ID_CHK_LINES, NULL, NULL);
-            SendMessage(g_hChkLines, WM_SETFONT, (WPARAM)g_hFont, TRUE);
-            SendMessage(g_hChkLines, BM_SETCHECK, BST_CHECKED, 0);
-
-            g_hChkBorder = CreateWindowW(L"BUTTON", L"Slayt cerceve kenarligi",
+            g_hChkBorder = CreateWindowW(L"BUTTON", L"Slide border",
                                          WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-                                         285, 230, 200, 22, hwnd, (HMENU)ID_CHK_BORDER, NULL, NULL);
+                                         330, 242, 180, 22, hwnd, (HMENU)ID_CHK_BORDER, NULL, NULL);
             SendMessage(g_hChkBorder, WM_SETFONT, (WPARAM)g_hFont, TRUE);
-            SendMessage(g_hChkBorder, BM_SETCHECK, BST_CHECKED, 0);
+            SendMessage(g_hChkBorder, BM_SETCHECK, BST_UNCHECKED, 0); /* DEFAULT: UNCHECKED */
 
             /* Group 3: Metadata & Cover */
-            HWND hGrp2 = CreateWindowW(L"BUTTON", L"Kapak & Dokuman Bilgileri (Istege Bagli)",
+            HWND hGrp2 = CreateWindowW(L"BUTTON", L"Cover & Details (Optional)",
                                        WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
-                                       20, 275, 520, 135, hwnd, NULL, NULL, NULL);
+                                       20, 300, 515, 138, hwnd, NULL, NULL, NULL);
             SendMessage(hGrp2, WM_SETFONT, (WPARAM)g_hFontBold, TRUE);
 
-            g_hChkCover = CreateWindowW(L"BUTTON", L"On kapak sayfasi ekle",
+            g_hChkCover = CreateWindowW(L"BUTTON", L"Front cover page",
                                         WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-                                        35, 298, 180, 22, hwnd, (HMENU)ID_CHK_COVER, NULL, NULL);
+                                        35, 323, 160, 22, hwnd, (HMENU)ID_CHK_COVER, NULL, NULL);
             SendMessage(g_hChkCover, WM_SETFONT, (WPARAM)g_hFont, TRUE);
-            SendMessage(g_hChkCover, BM_SETCHECK, BST_CHECKED, 0);
+            SendMessage(g_hChkCover, BM_SETCHECK, BST_UNCHECKED, 0); /* DEFAULT: UNCHECKED */
 
-            g_hChkEnd = CreateWindowW(L"BUTTON", L"Bitis sayfasi ekle",
+            g_hChkEnd = CreateWindowW(L"BUTTON", L"End page",
                                       WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-                                      285, 298, 180, 22, hwnd, (HMENU)ID_CHK_END, NULL, NULL);
+                                      220, 323, 160, 22, hwnd, (HMENU)ID_CHK_END, NULL, NULL);
             SendMessage(g_hChkEnd, WM_SETFONT, (WPARAM)g_hFont, TRUE);
-            SendMessage(g_hChkEnd, BM_SETCHECK, BST_CHECKED, 0);
+            SendMessage(g_hChkEnd, BM_SETCHECK, BST_UNCHECKED, 0); /* DEFAULT: UNCHECKED */
 
-            HWND hLblC = CreateWindowW(L"STATIC", L"Ders Adi / Kodu:", WS_CHILD | WS_VISIBLE, 35, 332, 110, 18, hwnd, NULL, NULL, NULL);
+            HWND hLblC = CreateWindowW(L"STATIC", L"Course / Title:", WS_CHILD | WS_VISIBLE, 35, 357, 110, 18, hwnd, NULL, NULL, NULL);
             SendMessage(hLblC, WM_SETFONT, (WPARAM)g_hFont, TRUE);
-            g_hEdtCourse = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL, 150, 329, 150, 24, hwnd, (HMENU)ID_EDT_COURSE, NULL, NULL);
+            g_hEdtCourse = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL, 150, 354, 140, 24, hwnd, (HMENU)ID_EDT_COURSE, NULL, NULL);
             SendMessage(g_hEdtCourse, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
-            HWND hLblM = CreateWindowW(L"STATIC", L"Konu / Modul:", WS_CHILD | WS_VISIBLE, 315, 332, 90, 18, hwnd, NULL, NULL, NULL);
+            HWND hLblM = CreateWindowW(L"STATIC", L"Subtitle:", WS_CHILD | WS_VISIBLE, 310, 357, 65, 18, hwnd, NULL, NULL, NULL);
             SendMessage(hLblM, WM_SETFONT, (WPARAM)g_hFont, TRUE);
-            g_hEdtModule = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL, 410, 329, 115, 24, hwnd, (HMENU)ID_EDT_MODULE, NULL, NULL);
+            g_hEdtModule = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL, 380, 354, 140, 24, hwnd, (HMENU)ID_EDT_MODULE, NULL, NULL);
             SendMessage(g_hEdtModule, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
-            HWND hLblA = CreateWindowW(L"STATIC", L"Ogrenci / Not Alan:", WS_CHILD | WS_VISIBLE, 35, 367, 110, 18, hwnd, NULL, NULL, NULL);
+            HWND hLblA = CreateWindowW(L"STATIC", L"Student Name:", WS_CHILD | WS_VISIBLE, 35, 392, 110, 18, hwnd, NULL, NULL, NULL);
             SendMessage(hLblA, WM_SETFONT, (WPARAM)g_hFont, TRUE);
-            g_hEdtAuthor = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL, 150, 364, 150, 24, hwnd, (HMENU)ID_EDT_AUTHOR, NULL, NULL);
+            g_hEdtAuthor = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL, 150, 389, 140, 24, hwnd, (HMENU)ID_EDT_AUTHOR, NULL, NULL);
             SendMessage(g_hEdtAuthor, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
-            HWND hLblU = CreateWindowW(L"STATIC", L"Universite / Okul:", WS_CHILD | WS_VISIBLE, 315, 367, 90, 18, hwnd, NULL, NULL, NULL);
+            HWND hLblU = CreateWindowW(L"STATIC", L"Institution:", WS_CHILD | WS_VISIBLE, 310, 392, 65, 18, hwnd, NULL, NULL, NULL);
             SendMessage(hLblU, WM_SETFONT, (WPARAM)g_hFont, TRUE);
-            g_hEdtUni = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL, 410, 364, 115, 24, hwnd, (HMENU)ID_EDT_UNI, NULL, NULL);
+            g_hEdtUni = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL, 380, 389, 140, 24, hwnd, (HMENU)ID_EDT_UNI, NULL, NULL);
             SendMessage(g_hEdtUni, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
             /* Action Buttons Row */
-            g_hBtnConvert = CreateWindowW(L"BUTTON", L"PDF'leri Not Formatina Donustur",
+            g_hBtnConvert = CreateWindowW(L"BUTTON", L"Convert PDFs",
                                           WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-                                          20, 424, 455, 42, hwnd, (HMENU)ID_BTN_CONVERT, NULL, NULL);
+                                          20, 450, 445, 42, hwnd, (HMENU)ID_BTN_CONVERT, NULL, NULL);
             SendMessage(g_hBtnConvert, WM_SETFONT, (WPARAM)g_hFontBold, TRUE);
 
-            /* Intuitive Small Folder Button (no text) */
-            g_hBtnOpenFolder = CreateWindowW(L"BUTTON", L"\x25A6", /* Will use icon or folder symbol */
+            /* Intuitive Small Folder Button (No Text, Just Icon) */
+            g_hBtnOpenFolder = CreateWindowW(L"BUTTON", L"\xD83D\xDCC1",
                                              WS_CHILD | BS_PUSHBUTTON,
-                                             485, 424, 55, 42, hwnd, (HMENU)ID_BTN_OPEN_FOLDER, NULL, NULL);
-            SetWindowTextW(g_hBtnOpenFolder, L"\xD83D\xDCC1"); /* 📁 Folder emoji in UTF-16 surrogate pair */
+                                             475, 450, 60, 42, hwnd, (HMENU)ID_BTN_OPEN_FOLDER, NULL, NULL);
             SendMessage(g_hBtnOpenFolder, WM_SETFONT, (WPARAM)g_hFontIcon, TRUE);
 
             /* Status Label */
-            g_hStatus = CreateWindowW(L"STATIC", L"PDF dosyalari surukleyip birakin veya Gozat ile secin.",
-                                      WS_CHILD | WS_VISIBLE, 20, 478, 520, 22, hwnd, NULL, NULL, NULL);
+            g_hStatus = CreateWindowW(L"STATIC", L"Ready. Select or drag PDF files to start.",
+                                      WS_CHILD | WS_VISIBLE, 20, 504, 515, 20, hwnd, NULL, NULL, NULL);
             SendMessage(g_hStatus, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
             break;
@@ -490,7 +500,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             HDROP hDrop = (HDROP)wParam;
             UINT count = DragQueryFileW(hDrop, 0xFFFFFFFF, NULL, 0);
             if (count > 0) {
-                clear_input_files();
                 for (UINT i = 0; i < count; i++) {
                     wchar_t szFile[MAX_PATH];
                     if (DragQueryFileW(hDrop, i, szFile, MAX_PATH)) {
@@ -513,6 +522,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             int wmId = LOWORD(wParam);
             if (wmId == ID_BTN_BROWSE) {
                 on_browse();
+            } else if (wmId == ID_BTN_CLEAR) {
+                clear_input_files();
+                update_input_display();
             } else if (wmId == ID_CHK_SUBFOLDER) {
                 int chk = (SendMessage(g_hChkSubfolder, BM_GETCHECK, 0, 0) == BST_CHECKED);
                 EnableWindow(g_hEdtOutDir, !chk);
@@ -552,13 +564,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
     if (argc > 1) {
         if (wcscmp(argv[1], L"-h") == 0 || wcscmp(argv[1], L"--help") == 0 || wcscmp(argv[1], L"/?") == 0) {
             MessageBoxW(NULL,
-                L"Slide Note Formatter (Ultra-Lightweight <1MB)\n\n"
-                L"Kullanim (CLI):\n"
-                L"  SlideNoteFormatter.exe <input.pdf> [output.pdf] [slides_per_page] [-author \"Ad Soyad\"]\n\n"
-                L"Ornek:\n"
-                L"  SlideNoteFormatter.exe ders.pdf ders_not.pdf 3 -author \"Haluk Tanriseven\"\n\n"
-                L"Veya dogrudan PDF dosyalarini programin uzerine surukleyip birakin.",
-                L"Kullanim Yardimi", MB_ICONINFORMATION);
+                L"Slide Formatter (Ultra-Lightweight <1MB)\n\n"
+                L"Usage (CLI):\n"
+                L"  SlideNoteFormatter.exe <input.pdf> [output.pdf] [slides_per_page] [-author \"Name\"]\n\n"
+                L"Example:\n"
+                L"  SlideNoteFormatter.exe lecture.pdf output.pdf 3 -author \"Haluk Tanriseven\"\n\n"
+                L"Or simply drag and drop PDF files onto the executable icon.",
+                L"CLI Help", MB_ICONINFORMATION);
             LocalFree(argv);
             return 0;
         }
@@ -602,7 +614,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
             wcsncpy(sz_out_buf, in_arg, MAX_PATH - 1);
             wchar_t *dot = wcsrchr(sz_out_buf, L'.');
             if (dot) *dot = L'\0';
-            wcsncat(sz_out_buf, L"_notlar.pdf", MAX_PATH - wcslen(sz_out_buf) - 1);
+            wcsncat(sz_out_buf, L"_formatted.pdf", MAX_PATH - wcslen(sz_out_buf) - 1);
             out_arg = sz_out_buf;
         }
 
@@ -611,20 +623,15 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
         PDFEngineConfig cfg;
         memset(&cfg, 0, sizeof(cfg));
         cfg.slides_per_page = slides;
-        cfg.draw_border = 1;
-        cfg.draw_note_lines = 1;
-        cfg.add_cover = 1;
-        cfg.add_end = 1;
+        cfg.draw_border = 0;
+        cfg.draw_note_lines = 0;
+        cfg.add_cover = 0;
+        cfg.add_end = 0;
 
-        char in_u8[MAX_PATH * 3] = { 0 };
-        char out_u8[MAX_PATH * 3] = { 0 };
         char author_u8[256] = { 0 };
         char course_u8[256] = { 0 };
         char module_u8[256] = { 0 };
         char uni_u8[256] = { 0 };
-
-        WideCharToMultiByte(CP_UTF8, 0, in_arg, -1, in_u8, sizeof(in_u8), NULL, NULL);
-        WideCharToMultiByte(CP_UTF8, 0, out_arg, -1, out_u8, sizeof(out_u8), NULL, NULL);
 
         if (author_arg) {
             WideCharToMultiByte(CP_UTF8, 0, author_arg, -1, author_u8, sizeof(author_u8), NULL, NULL);
@@ -645,7 +652,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 
         int out_pages = 0, out_slides = 0;
         char err[512] = { 0 };
-        int res = process_pdf_file(in_u8, out_u8, &cfg, NULL, NULL, &out_pages, &out_slides, err, sizeof(err));
+        int res = process_pdf_file_w(in_arg, out_arg, &cfg, NULL, NULL, &out_pages, &out_slides, err, sizeof(err));
 
         LocalFree(argv);
         return res;
@@ -667,15 +674,15 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
     wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(1));
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
-    wc.lpszClassName = L"SlideNoteFormatterApp";
+    wc.lpszClassName = L"SlideFormatterApp";
     RegisterClassExW(&wc);
 
     HWND hwnd = CreateWindowExW(
         WS_EX_ACCEPTFILES,
-        L"SlideNoteFormatterApp",
-        L"Slayt Not Formatlayici (Ultra-Lightweight)",
+        L"SlideFormatterApp",
+        L"Slide Formatter",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
-        CW_USEDEFAULT, CW_USEDEFAULT, 575, 545,
+        CW_USEDEFAULT, CW_USEDEFAULT, 570, 575,
         NULL, NULL, hInstance, NULL
     );
 
