@@ -4,10 +4,7 @@
   "version": "2.0.0",
   "identifier": "com.haluked.slidenoteformatter",
   "build": {
-    "frontendDist": "../dist",
-    "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build"
+    "frontendDist": "../dist"
   },
   "app": {
     "withGlobalTauri": true,
