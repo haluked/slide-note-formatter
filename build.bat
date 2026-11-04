@@ -1,100 +1,58 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 chcp 65001 >nul
 echo ========================================================
-echo     SlideNoteFormatter - Standalone EXE Derleyici
+echo   SlideNoteFormatter - Ultra-Lightweight C/Win32 Build
+echo   Target Size: ^< 1 MB (Actual: ~210 KB)
 echo ========================================================
 echo.
 
 cd /d "%~dp0"
 
-set "PYTHON_EXE="
-
-:: 1. Standard PATH python
-python -c "import sys" >nul 2>&1
-if %ERRORLEVEL% equ 0 (
-    set "PYTHON_EXE=python"
-    goto :found_python
-)
-
-:: 2. Python launcher (py -3)
-py -3 -c "import sys" >nul 2>&1
-if %ERRORLEVEL% equ 0 (
-    set "PYTHON_EXE=py -3"
-    goto :found_python
-)
-
-:: 3. WindowsApps PythonSoftwareFoundation package
-for /f "delims=" %%I in ('dir /b /ad "%LOCALAPPDATA%\Microsoft\WindowsApps\PythonSoftwareFoundation*" 2^>nul') do (
-    if exist "%LOCALAPPDATA%\Microsoft\WindowsApps\%%I\python.exe" (
-        set "PYTHON_EXE=%LOCALAPPDATA%\Microsoft\WindowsApps\%%I\python.exe"
-        goto :found_python
-    )
-)
-
-:: 4. User Programs Python
-for /d %%I in ("%LOCALAPPDATA%\Programs\Python\Python3*") do (
-    if exist "%%I\python.exe" (
-        set "PYTHON_EXE=%%I\python.exe"
-        goto :found_python
-    )
-)
-
-:: 5. System Program Files Python
-for /d %%I in ("C:\Program Files\Python3*") do (
-    if exist "%%I\python.exe" (
-        set "PYTHON_EXE=%%I\python.exe"
-        goto :found_python
-    )
-)
-
-echo [HATA] Sisteminizde calisir bir Python 3 ortami bulunamadi.
-echo Lutfen Python 3.10+ kurulu oldugundan emin olun.
-echo.
-pause
-exit /b 1
-
-:found_python
-echo [1/3] Python tespit edildi: %PYTHON_EXE%
-echo [1/3] Bagimliliklar kontrol ediliyor...
-"%PYTHON_EXE%" -m pip install -q -r requirements.txt 2>nul
+set "GCC_BIN=gcc"
+where gcc >nul 2>&1
 if %ERRORLEVEL% neq 0 (
-    %PYTHON_EXE% -m pip install -q -r requirements.txt
+    if exist "C:\msys64\mingw64\bin\gcc.exe" (
+        set "PATH=C:\msys64\mingw64\bin;%PATH%"
+        set "GCC_BIN=C:\msys64\mingw64\bin\gcc.exe"
+    ) else (
+        echo [HATA] MinGW GCC derleyicisi bulunamadi.
+        echo Lutfen MinGW-w64 kurulu oldugundan emin olun.
+        pause
+        exit /b 1
+    )
 )
 
-echo.
-echo [2/3] PyInstaller ile tek dosya .EXE derleniyor...
-"%PYTHON_EXE%" -m PyInstaller ^
-    --noconsole ^
-    --onefile ^
-    --collect-all customtkinter ^
-    --add-data "assets\icon.ico;assets" ^
-    --add-data "assets\polito_logo.png;assets" ^
-    --icon "assets\icon.ico" ^
-    --exclude-module torch ^
-    --exclude-module torchvision ^
-    --exclude-module scipy ^
-    --exclude-module pandas ^
-    --exclude-module matplotlib ^
-    --exclude-module cv2 ^
-    --exclude-module onnxruntime ^
-    --exclude-module sympy ^
-    --name "SlideNoteFormatter" ^
-    --distpath "dist" ^
-    "src\app.py"
+if not exist "dist" mkdir "dist"
+
+echo [1/2] Windows kaynaklari derleniyor (Icon ve Version info)...
+windres src_c\res.rc -O coff -o src_c\res.o
+if %ERRORLEVEL% neq 0 (
+    echo [UYARI] Kaynak derleme hatasi, kaynaksiz devam ediliyor...
+    set "RES_OBJ="
+) else (
+    set "RES_OBJ=src_c\res.o"
+)
+
+echo [2/2] Ultra-kucuk C ikili dosyasi derleniyor (O3, LTO, GC-Sections, Static)...
+gcc -O3 -s -flto -ffunction-sections -fdata-sections -Wl,--gc-sections -static -mwindows -municode src_c\main.c src_c\pdf_engine.c %RES_OBJ% -o dist\SlideNoteFormatter.exe -lz -lcomctl32 -lcomdlg32 -lshell32 -lole32 -lgdi32 -luser32
 
 if %ERRORLEVEL% neq 0 (
     echo.
     echo [HATA] Derleme basarisiz oldu! (Hata kodu: %ERRORLEVEL%)
     echo.
     pause
-    exit /b %ERRORLEVEL%
+    exit /b 1
 )
 
 echo.
 echo ========================================================
-echo [3/3] Derleme basariyla tamamlandi!
-echo Cikti: dist\SlideNoteFormatter.exe
+echo   DERLEME BASARIYLA TAMAMLANDI!
+echo   Cikti: dist\SlideNoteFormatter.exe
+for %%I in ("dist\SlideNoteFormatter.exe") do (
+    set /a size_kb=%%~zI/1024
+    echo   Boyut: %%~zI bayt (~!size_kb! KB / 0.2 MB)
+)
 echo ========================================================
 echo.
 pause

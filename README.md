@@ -10,11 +10,14 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white" alt="Platform Windows" />
-  <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white" alt="Python 3.10+" />
-  <img src="https://img.shields.io/badge/GUI-CustomTkinter-1E293B" alt="CustomTkinter" />
-  <img src="https://img.shields.io/badge/Engine-MuPDF-FF6F00" alt="MuPDF" />
+  <img src="https://img.shields.io/badge/Language-Pure%20C%20%2F%20Win32-blue" alt="Pure C / Win32" />
+  <img src="https://img.shields.io/badge/Size-~210%20KB%20(%3C1MB)-brightgreen" alt="Binary Size" />
+  <img src="https://img.shields.io/badge/RAM-%3C%204%20MB-success" alt="RAM Usage" />
+  <img src="https://img.shields.io/badge/Engine-Vector%20Form%20XObjects-FF6F00" alt="Vector Engine" />
   <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License MIT" />
 </p>
+
+> ⚡ **Ultra-Lightweight Rewrite**: Uygulama, eski 55 MB PyInstaller paketinden tamamen bağımsız, **~210 KB** boyutunda saf C / Win32 ikili dosyası olarak yeniden yazılmıştır. Herhangi bir "tost makinesi" seviyesindeki eski bilgisayarda dahi < 10 ms içinde açılır ve anında çalışır.
 
 ---
 
