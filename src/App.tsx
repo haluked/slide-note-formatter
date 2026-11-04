@@ -9,21 +9,11 @@ import {
   Plus
 } from 'lucide-react';
 
-// Tauri API imports with safe browser fallback
-let tauriInvoke: any = null;
-let tauriListen: any = null;
-try {
-  const core = (window as any).__TAURI__?.core;
-  if (core) {
-    tauriInvoke = core.invoke;
-  }
-  const event = (window as any).__TAURI__?.event;
-  if (event) {
-    tauriListen = event.listen;
-  }
-} catch (e) {
-  console.warn("Tauri API not detected, running in web simulation mode", e);
-}
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+
+const tauriInvoke = invoke;
+const tauriListen = listen;
 
 interface FileItem {
   id: string;
@@ -94,7 +84,7 @@ export default function App() {
     async function loadConfig() {
       if (tauriInvoke) {
         try {
-          const cfg = await tauriInvoke('get_user_config');
+          const cfg = await tauriInvoke<any>('get_user_config');
           if (cfg) {
             setConfig((prev) => ({ ...prev, ...cfg }));
             setTheme(cfg.appearance_mode || 'dark');
@@ -944,3 +934,4 @@ export default function App() {
     </div>
   );
 }
+

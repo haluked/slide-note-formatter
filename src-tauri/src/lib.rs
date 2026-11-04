@@ -1,8 +1,8 @@
 use std::fs;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
 use serde_json::Value;
 use walkdir::WalkDir;
 use regex::Regex;
@@ -220,28 +220,17 @@ async fn process_batch(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     std::panic::set_hook(Box::new(|info| {
-        let msg = format!("PANIC: {:?}", info);
-        eprintln!("{}", msg);
-        let _ = std::fs::write("tauri_panic.log", msg);
+        let payload = if let Some(s) = info.payload().downcast_ref::<&str>() {
+            (*s).to_string()
+        } else if let Some(s) = info.payload().downcast_ref::<String>() {
+            s.clone()
+        } else {
+            format!("{:?}", info)
+        };
+        let _ = std::fs::write("tauri_panic.log", payload);
     }));
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
-        .setup(|app| {
-            let _ = std::fs::write("tauri_setup.log", "SETUP HOOK EXECUTED\n");
-            if let Some(w) = app.get_webview_window("main") {
-                let _ = w.show();
-                let _ = w.set_focus();
-            }
-            Ok(())
-        })
-        .on_window_event(|window, event| {
-            let msg = format!("EVENT on {:?}: {:?}\n", window.label(), event);
-            if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open("tauri_events.log") {
-                let _ = f.write_all(msg.as_bytes());
-            }
-        })
         .invoke_handler(tauri::generate_handler![
             pick_files,
             pick_folder,
