@@ -183,6 +183,14 @@ class SlideNoteApp(ctk.CTk):
         self.setup_settings_tab()
         self.setup_about_tab()
 
+        # Keyboard Navigation & Shortcuts (Apple HIG & Emil Kowalski)
+        self.bind("<Control-o>", lambda e: self.add_files())
+        self.bind("<Control-O>", lambda e: self.add_files())
+        self.bind("<Control-Shift-o>", lambda e: self.add_folder())
+        self.bind("<Control-Shift-O>", lambda e: self.add_folder())
+        self.bind("<Control-Return>", lambda e: self.start_conversion())
+        self.bind("<Escape>", lambda e: self.clear_files() if not self.is_processing else None)
+
     # -------------------------------------------------------------
     # TAB 1: CONVERTER
     # -------------------------------------------------------------
@@ -205,20 +213,31 @@ class SlideNoteApp(ctk.CTk):
         action_row = ctk.CTkFrame(bottom_box, fg_color="transparent")
         action_row.pack(fill="x")
 
+        status_box = ctk.CTkFrame(action_row, fg_color="transparent")
+        status_box.pack(side="left")
+
         self.lbl_status = ctk.CTkLabel(
-            action_row,
+            status_box,
             text="Hazır",
             font=ctk.CTkFont(size=12),
             text_color=THEME["text_secondary"]
         )
         self.lbl_status.pack(side="left")
 
+        self.lbl_percent = ctk.CTkLabel(
+            status_box,
+            text="",
+            font=ctk.CTkFont(family="Consolas", size=11, weight="bold"),
+            text_color=THEME["accent"]
+        )
+        self.lbl_percent.pack(side="left", padx=(8, 0))
+
         self.btn_start = ctk.CTkButton(
             action_row,
-            text="Dönüştürmeyi Başlat",
+            text="Dönüştürmeyi Başlat (Ctrl+↵)",
             font=ctk.CTkFont(size=13, weight="bold"),
             command=self.start_conversion,
-            width=180,
+            width=210,
             height=38,
             fg_color=THEME["primary_btn_bg"],
             hover_color=THEME["primary_btn_hover"],
@@ -294,9 +313,9 @@ class SlideNoteApp(ctk.CTk):
 
         self.btn_add_files = ctk.CTkButton(
             btn_row,
-            text="+ Dosya Ekle",
+            text="+ Dosya Ekle (Ctrl+O)",
             command=self.add_files,
-            width=110,
+            width=145,
             height=32,
             fg_color=THEME["raised"],
             hover_color=THEME["raised_hover"],
@@ -693,6 +712,15 @@ class SlideNoteApp(ctk.CTk):
                     fill="#E2E8F0", width=1
                 )
 
+        # Subtle page footer indicator
+        self.preview_canvas.create_text(
+            w / 2, h - 7,
+            text="—  Sayfa 1 / 12  —",
+            fill="#94A3B8",
+            font=("Arial", 5),
+            justify="center"
+        )
+
     def draw_cover_preview(self, w, h, has_cover):
         if not has_cover:
             self.preview_canvas.create_rectangle(
@@ -731,21 +759,37 @@ class SlideNoteApp(ctk.CTk):
             justify="center"
         )
 
-        # 2. Crest / Emblem Mock (Shield or Circle)
+        # 2. Crest / Emblem Mock (Sharp Vector Heraldic Shield)
         cy = 54
-        self.preview_canvas.create_oval(
-            cx - 14, cy - 14, cx + 14, cy + 14,
-            fill="#F1F5F9", outline="#94A3B8", width=1
+        shield_pts = [
+            cx - 12, cy - 14,
+            cx + 12, cy - 14,
+            cx + 12, cy + 2,
+            cx, cy + 14,
+            cx - 12, cy + 2
+        ]
+        self.preview_canvas.create_polygon(
+            shield_pts,
+            fill="#F8FAFC", outline="#94A3B8", width=1
         )
-        self.preview_canvas.create_oval(
-            cx - 10, cy - 10, cx + 10, cy + 10,
+        inner_pts = [
+            cx - 9, cy - 11,
+            cx + 9, cy - 11,
+            cx + 9, cy + 1,
+            cx, cy + 10,
+            cx - 9, cy + 1
+        ]
+        self.preview_canvas.create_polygon(
+            inner_pts,
             fill="#FFFFFF", outline="#CBD5E1", width=1
         )
-        self.preview_canvas.create_text(
-            cx, cy,
-            text="🎓",
-            font=("Segoe UI Emoji", 10),
-            justify="center"
+        self.preview_canvas.create_line(
+            cx - 5, cy - 2, cx, cy + 3, cx + 5, cy - 2,
+            fill="#2563EB", width=1.5
+        )
+        self.preview_canvas.create_line(
+            cx - 6, cy - 6, cx + 6, cy - 6,
+            fill="#64748B", width=1
         )
 
         # 3. Course Title
@@ -1403,8 +1447,18 @@ class SlideNoteApp(ctk.CTk):
     def clear_files(self):
         self.selected_files = []
         self.ent_course.delete(0, "end")
+        self.btn_open_folder.configure(
+            state="disabled",
+            fg_color=THEME["raised"],
+            text_color=THEME["text_primary"],
+            hover_color=THEME["raised_hover"]
+        )
         self.update_file_list()
         self.update_preview_canvas()
+        self.lbl_status.configure(text="Hazır")
+        if hasattr(self, "lbl_percent"):
+            self.lbl_percent.configure(text="")
+        self.progress_bar.set(0)
 
     def update_file_list(self):
         # Clear existing children in scrollable frame
@@ -1425,11 +1479,24 @@ class SlideNoteApp(ctk.CTk):
             )
             empty_frame.pack(fill="both", expand=True, padx=8, pady=32)
 
-            ctk.CTkLabel(
+            doc_badge = ctk.CTkFrame(
                 empty_frame,
-                text="📄",
-                font=ctk.CTkFont(size=24)
-            ).pack(pady=(20, 6))
+                width=44,
+                height=48,
+                corner_radius=6,
+                fg_color=THEME["raised"],
+                border_width=1,
+                border_color=THEME["border"]
+            )
+            doc_badge.pack(pady=(22, 10))
+            doc_badge.pack_propagate(False)
+
+            ctk.CTkLabel(
+                doc_badge,
+                text="PDF",
+                font=ctk.CTkFont(family="Consolas", size=11, weight="bold"),
+                text_color=THEME["accent"]
+            ).place(relx=0.5, rely=0.5, anchor="center")
 
             ctk.CTkLabel(
                 empty_frame,
@@ -1643,21 +1710,27 @@ class SlideNoteApp(ctk.CTk):
         self.btn_add_folder.configure(state="normal")
         self.btn_clear.configure(state="normal")
         if self.last_output_dir and os.path.isdir(self.last_output_dir):
-            self.btn_open_folder.configure(state="normal")
+            self.btn_open_folder.configure(
+                state="normal",
+                fg_color=THEME["accent"],
+                hover_color=THEME["accent_hover"],
+                text_color="#FFFFFF"
+            )
 
         if success_count > 0:
-            messagebox.showinfo(
-                "İşlem Tamamlandı",
-                f"{success_count}/{total_files} PDF başarıyla dönüştürüldü.\n\n"
-                f"Kayıt Konumu:\n{self.last_output_dir}"
-            )
+            self.lbl_status.configure(text=f"✓ Tamamlandı: {success_count}/{total_files} PDF oluşturuldu.")
+            if hasattr(self, "lbl_percent"):
+                self.lbl_percent.configure(text="✓")
 
     def open_output_folder(self):
         if self.last_output_dir and os.path.isdir(self.last_output_dir):
             os.startfile(self.last_output_dir)
 
     def update_status(self, text, progress_val):
+        pct_text = f"{int(progress_val * 100):3d}%" if 0.0 < progress_val < 1.0 else ("✓ 100%" if progress_val >= 1.0 else "")
         self.after(0, lambda: self.lbl_status.configure(text=text))
+        if hasattr(self, "lbl_percent"):
+            self.after(0, lambda: self.lbl_percent.configure(text=pct_text))
         self.after(0, lambda: self.progress_bar.set(progress_val))
 
 
