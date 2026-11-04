@@ -1,8 +1,10 @@
 #define _CRT_SECURE_NO_WARNINGS
+#define COBJMACROS
 #include <windows.h>
 #include <commctrl.h>
 #include <shellapi.h>
 #include <shlobj.h>
+#include <shobjidl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -60,13 +62,12 @@ static void clear_input_files() {
     g_input_count = 0;
     g_input_capacity = 0;
     if (g_hListFiles) {
-        SendMessage(g_hListFiles, LB_RESETCONTENT, 0, 0);
+        SendMessageW(g_hListFiles, LB_RESETCONTENT, 0, 0);
     }
 }
 
 static void add_input_file(const wchar_t *path) {
     if (!path || !*path) return;
-    /* Avoid duplicates */
     for (int i = 0; i < g_input_count; i++) {
         if (_wcsicmp(g_input_files[i], path) == 0) return;
     }
@@ -79,7 +80,6 @@ static void add_input_file(const wchar_t *path) {
     }
     g_input_files[g_input_count++] = _wcsdup(path);
 
-    /* Show just filename in the listbox */
     const wchar_t *fname = wcsrchr(path, L'\\');
     if (!fname) fname = wcsrchr(path, L'/');
     if (fname) fname++; else fname = path;
@@ -149,67 +149,70 @@ static void auto_detect_names(const wchar_t *filepath) {
 }
 
 static void on_browse() {
-    wchar_t *szBuffer = (wchar_t *)calloc(65536, sizeof(wchar_t));
-    if (!szBuffer) return;
+    IFileOpenDialog *pfd = NULL;
+    HRESULT hr = CoCreateInstance(&CLSID_FileOpenDialog, NULL, CLSCTX_INPROC_SERVER, &IID_IFileOpenDialog, (void**)&pfd);
+    if (FAILED(hr)) return;
 
-    OPENFILENAMEW ofn;
-    memset(&ofn, 0, sizeof(ofn));
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = g_hwnd;
-    ofn.lpstrFilter = L"PDF Documents (*.pdf)\0*.pdf\0All Files (*.*)\0*.*\0";
-    ofn.lpstrFile = szBuffer;
-    ofn.nMaxFile = 65535;
-    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_ALLOWMULTISELECT | OFN_EXPLORER;
-    ofn.lpstrTitle = L"Select PDF File(s)";
+    FILEOPENDIALOGOPTIONS opt;
+    IFileOpenDialog_GetOptions(pfd, &opt);
+    IFileOpenDialog_SetOptions(pfd, opt | FOS_ALLOWMULTISELECT | FOS_FILEMUSTEXIST | FOS_PATHMUSTEXIST);
+    IFileOpenDialog_SetTitle(pfd, L"Select PDF File(s)");
 
-    if (GetOpenFileNameW(&ofn)) {
-        wchar_t *p = szBuffer;
-        wchar_t dir[MAX_PATH] = { 0 };
-        wcsncpy(dir, p, MAX_PATH - 1);
-        p += wcslen(p) + 1;
+    COMDLG_FILTERSPEC filters[] = {
+        { L"PDF Documents (*.pdf)", L"*.pdf" },
+        { L"All Files (*.*)", L"*.*" }
+    };
+    IFileOpenDialog_SetFileTypes(pfd, 2, filters);
 
-        if (*p == L'\0') {
-            /* Single file selected: dir contains full path */
-            add_input_file(dir);
-            auto_detect_names(dir);
-        } else {
-            /* Multiple files selected */
-            size_t dlen = wcslen(dir);
-            int has_slash = (dlen > 0 && (dir[dlen - 1] == L'\\' || dir[dlen - 1] == L'/'));
-
-            while (*p) {
-                wchar_t full_path[MAX_PATH];
-                if (has_slash) {
-                    swprintf(full_path, MAX_PATH, L"%s%s", dir, p);
-                } else {
-                    swprintf(full_path, MAX_PATH, L"%s\\%s", dir, p);
+    if (SUCCEEDED(IFileOpenDialog_Show(pfd, g_hwnd))) {
+        IShellItemArray *pItems = NULL;
+        if (SUCCEEDED(IFileOpenDialog_GetResults(pfd, &pItems))) {
+            DWORD numItems = 0;
+            IShellItemArray_GetCount(pItems, &numItems);
+            if (numItems > 0) {
+                clear_input_files();
+                for (DWORD i = 0; i < numItems; i++) {
+                    IShellItem *pItem = NULL;
+                    if (SUCCEEDED(IShellItemArray_GetItemAt(pItems, i, &pItem))) {
+                        LPWSTR pszFilePath = NULL;
+                        if (SUCCEEDED(IShellItem_GetDisplayName(pItem, SIGDN_FILESYSPATH, &pszFilePath))) {
+                            add_input_file(pszFilePath);
+                            CoTaskMemFree(pszFilePath);
+                        }
+                        IShellItem_Release(pItem);
+                    }
                 }
-                add_input_file(full_path);
-                p += wcslen(p) + 1;
+                if (g_input_count > 0) {
+                    auto_detect_names(g_input_files[0]);
+                }
+                update_input_display();
             }
-            if (g_input_count > 0) {
-                auto_detect_names(g_input_files[0]);
-            }
+            IShellItemArray_Release(pItems);
         }
-        update_input_display();
     }
-    free(szBuffer);
+    IFileOpenDialog_Release(pfd);
 }
 
 static void on_browse_output_dir() {
-    BROWSEINFOW bi;
-    memset(&bi, 0, sizeof(bi));
-    bi.hwndOwner = g_hwnd;
-    bi.lpszTitle = L"Select Output Folder:";
-    bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+    IFileOpenDialog *pfd = NULL;
+    if (SUCCEEDED(CoCreateInstance(&CLSID_FileOpenDialog, NULL, CLSCTX_INPROC_SERVER, &IID_IFileOpenDialog, (void**)&pfd))) {
+        FILEOPENDIALOGOPTIONS opt;
+        IFileOpenDialog_GetOptions(pfd, &opt);
+        IFileOpenDialog_SetOptions(pfd, opt | FOS_PICKFOLDERS | FOS_PATHMUSTEXIST);
+        IFileOpenDialog_SetTitle(pfd, L"Select Output Folder");
 
-    PIDLIST_ABSOLUTE pidl = SHBrowseForFolderW(&bi);
-    if (pidl) {
-        wchar_t szPath[MAX_PATH] = { 0 };
-        if (SHGetPathFromIDListW(pidl, szPath)) {
-            SetWindowTextW(g_hEdtOutDir, szPath);
+        if (SUCCEEDED(IFileOpenDialog_Show(pfd, g_hwnd))) {
+            IShellItem *pItem = NULL;
+            if (SUCCEEDED(IFileOpenDialog_GetResult(pfd, &pItem))) {
+                LPWSTR pszPath = NULL;
+                if (SUCCEEDED(IShellItem_GetDisplayName(pItem, SIGDN_FILESYSPATH, &pszPath))) {
+                    SetWindowTextW(g_hEdtOutDir, pszPath);
+                    CoTaskMemFree(pszPath);
+                }
+                IShellItem_Release(pItem);
+            }
         }
-        CoTaskMemFree(pidl);
+        IFileOpenDialog_Release(pfd);
     }
 }
 
@@ -222,22 +225,22 @@ static void do_convert() {
     EnableWindow(g_hBtnConvert, FALSE);
     ShowWindow(g_hBtnOpenFolder, SW_HIDE);
 
-    int use_subfolder = (SendMessage(g_hChkSubfolder, BM_GETCHECK, 0, 0) == BST_CHECKED);
+    int use_subfolder = (SendMessageW(g_hChkSubfolder, BM_GETCHECK, 0, 0) == BST_CHECKED);
     wchar_t custom_out_dir[MAX_PATH] = { 0 };
     GetWindowTextW(g_hEdtOutDir, custom_out_dir, MAX_PATH);
 
     PDFEngineConfig cfg;
     memset(&cfg, 0, sizeof(cfg));
 
-    int sel = (int)SendMessage(g_hCmbSlides, CB_GETCURSEL, 0, 0);
+    int sel = (int)SendMessageW(g_hCmbSlides, CB_GETCURSEL, 0, 0);
     if (sel == 1) cfg.slides_per_page = 2;
     else if (sel == 2) cfg.slides_per_page = 4;
     else cfg.slides_per_page = 3;
 
-    cfg.draw_note_lines = 0; /* Option removed as requested: clean empty space on right */
-    cfg.draw_border = (SendMessage(g_hChkBorder, BM_GETCHECK, 0, 0) == BST_CHECKED);
-    cfg.add_cover = (SendMessage(g_hChkCover, BM_GETCHECK, 0, 0) == BST_CHECKED);
-    cfg.add_end = (SendMessage(g_hChkEnd, BM_GETCHECK, 0, 0) == BST_CHECKED);
+    cfg.draw_note_lines = 0;
+    cfg.draw_border = (SendMessageW(g_hChkBorder, BM_GETCHECK, 0, 0) == BST_CHECKED);
+    cfg.add_cover = (SendMessageW(g_hChkCover, BM_GETCHECK, 0, 0) == BST_CHECKED);
+    cfg.add_end = (SendMessageW(g_hChkEnd, BM_GETCHECK, 0, 0) == BST_CHECKED);
 
     char course_u8[256] = { 0 };
     char module_u8[256] = { 0 };
@@ -275,7 +278,6 @@ static void do_convert() {
         set_status(status_msg);
         UpdateWindow(g_hwnd);
 
-        /* Determine output directory */
         wchar_t out_dir[MAX_PATH] = { 0 };
         if (use_subfolder) {
             const wchar_t *slash = wcsrchr(in_path, L'\\');
@@ -301,7 +303,6 @@ static void do_convert() {
         CreateDirectoryW(out_dir, NULL);
         wcsncpy(g_last_output_dir, out_dir, MAX_PATH - 1);
 
-        /* Construct output filename */
         wchar_t fname_no_ext[MAX_PATH];
         wcsncpy(fname_no_ext, fname, MAX_PATH - 1);
         fname_no_ext[MAX_PATH - 1] = L'\0';
@@ -314,7 +315,6 @@ static void do_convert() {
         int out_pages = 0, out_slides = 0;
         char err_msg[512] = { 0 };
 
-        /* Call wide-char Unicode function directly */
         int res = process_pdf_file_w(in_path, out_file, &cfg, NULL, NULL, &out_pages, &out_slides, err_msg, sizeof(err_msg));
         if (res == 0) {
             total_converted++;
@@ -369,129 +369,129 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             /* Header Label */
             HWND hHdr = CreateWindowW(L"STATIC", L"Select or Drag PDF(s):",
                                       WS_CHILD | WS_VISIBLE, 20, 12, 350, 18, hwnd, NULL, NULL, NULL);
-            SendMessage(hHdr, WM_SETFONT, (WPARAM)g_hFontBold, TRUE);
+            SendMessageW(hHdr, WM_SETFONT, (WPARAM)g_hFontBold, TRUE);
 
             /* Files ListBox */
             g_hListFiles = CreateWindowExW(WS_EX_CLIENTEDGE, L"LISTBOX", L"",
                                            WS_CHILD | WS_VISIBLE | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | LBS_HASSTRINGS,
                                            20, 32, 420, 75, hwnd, (HMENU)ID_LST_FILES, NULL, NULL);
-            SendMessage(g_hListFiles, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(g_hListFiles, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
             HWND hBtnBrowse = CreateWindowW(L"BUTTON", L"Browse...",
                                             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
                                             450, 32, 85, 34, hwnd, (HMENU)ID_BTN_BROWSE, NULL, NULL);
-            SendMessage(hBtnBrowse, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(hBtnBrowse, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
             HWND hBtnClear = CreateWindowW(L"BUTTON", L"Clear",
                                            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
                                            450, 72, 85, 34, hwnd, (HMENU)ID_BTN_CLEAR, NULL, NULL);
-            SendMessage(hBtnClear, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(hBtnClear, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
             /* Group 1: Output Folder */
             HWND hGrpOut = CreateWindowW(L"BUTTON", L"Output Folder",
                                          WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
                                          20, 118, 515, 88, hwnd, NULL, NULL, NULL);
-            SendMessage(hGrpOut, WM_SETFONT, (WPARAM)g_hFontBold, TRUE);
+            SendMessageW(hGrpOut, WM_SETFONT, (WPARAM)g_hFontBold, TRUE);
 
             g_hChkSubfolder = CreateWindowW(L"BUTTON", L"Save to subfolder (_formatted)",
                                            WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
                                            35, 140, 400, 22, hwnd, (HMENU)ID_CHK_SUBFOLDER, NULL, NULL);
-            SendMessage(g_hChkSubfolder, WM_SETFONT, (WPARAM)g_hFont, TRUE);
-            SendMessage(g_hChkSubfolder, BM_SETCHECK, BST_CHECKED, 0); /* DEFAULT: CHECKED */
+            SendMessageW(g_hChkSubfolder, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(g_hChkSubfolder, BM_SETCHECK, BST_CHECKED, 0);
 
             HWND hLblCustomOut = CreateWindowW(L"STATIC", L"Custom folder:",
                                               WS_CHILD | WS_VISIBLE, 35, 170, 100, 20, hwnd, NULL, NULL, NULL);
-            SendMessage(hLblCustomOut, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(hLblCustomOut, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
             g_hEdtOutDir = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"",
                                            WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL | WS_DISABLED,
                                            140, 168, 325, 24, hwnd, (HMENU)ID_EDT_OUTDIR, NULL, NULL);
-            SendMessage(g_hEdtOutDir, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(g_hEdtOutDir, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
             g_hBtnBrowseOut = CreateWindowW(L"BUTTON", L"...",
                                             WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | WS_DISABLED,
                                             475, 167, 45, 26, hwnd, (HMENU)ID_BTN_BROWSE_OUT, NULL, NULL);
-            SendMessage(g_hBtnBrowseOut, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(g_hBtnBrowseOut, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
             /* Group 2: Layout */
             HWND hGrp1 = CreateWindowW(L"BUTTON", L"Layout",
                                        WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
                                        20, 218, 515, 72, hwnd, NULL, NULL, NULL);
-            SendMessage(hGrp1, WM_SETFONT, (WPARAM)g_hFontBold, TRUE);
+            SendMessageW(hGrp1, WM_SETFONT, (WPARAM)g_hFontBold, TRUE);
 
             HWND hLblSlides = CreateWindowW(L"STATIC", L"Slides per page:",
                                            WS_CHILD | WS_VISIBLE, 35, 243, 110, 20, hwnd, NULL, NULL, NULL);
-            SendMessage(hLblSlides, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(hLblSlides, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
             g_hCmbSlides = CreateWindowW(L"COMBOBOX", L"",
                                          WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
                                          150, 240, 150, 120, hwnd, (HMENU)ID_CMB_SLIDES, NULL, NULL);
-            SendMessage(g_hCmbSlides, WM_SETFONT, (WPARAM)g_hFont, TRUE);
-            SendMessage(g_hCmbSlides, CB_ADDSTRING, 0, (LPARAM)L"3 Slides");
-            SendMessage(g_hCmbSlides, CB_ADDSTRING, 0, (LPARAM)L"2 Slides");
-            SendMessage(g_hCmbSlides, CB_ADDSTRING, 0, (LPARAM)L"4 Slides");
-            SendMessage(g_hCmbSlides, CB_SETCURSEL, 0, 0);
+            SendMessageW(g_hCmbSlides, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(g_hCmbSlides, CB_ADDSTRING, 0, (LPARAM)L"3 Slides");
+            SendMessageW(g_hCmbSlides, CB_ADDSTRING, 0, (LPARAM)L"2 Slides");
+            SendMessageW(g_hCmbSlides, CB_ADDSTRING, 0, (LPARAM)L"4 Slides");
+            SendMessageW(g_hCmbSlides, CB_SETCURSEL, 0, 0);
 
             g_hChkBorder = CreateWindowW(L"BUTTON", L"Slide border",
                                          WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
                                          330, 242, 180, 22, hwnd, (HMENU)ID_CHK_BORDER, NULL, NULL);
-            SendMessage(g_hChkBorder, WM_SETFONT, (WPARAM)g_hFont, TRUE);
-            SendMessage(g_hChkBorder, BM_SETCHECK, BST_UNCHECKED, 0); /* DEFAULT: UNCHECKED */
+            SendMessageW(g_hChkBorder, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(g_hChkBorder, BM_SETCHECK, BST_UNCHECKED, 0);
 
             /* Group 3: Metadata & Cover */
             HWND hGrp2 = CreateWindowW(L"BUTTON", L"Cover & Details (Optional)",
                                        WS_CHILD | WS_VISIBLE | BS_GROUPBOX,
                                        20, 300, 515, 138, hwnd, NULL, NULL, NULL);
-            SendMessage(hGrp2, WM_SETFONT, (WPARAM)g_hFontBold, TRUE);
+            SendMessageW(hGrp2, WM_SETFONT, (WPARAM)g_hFontBold, TRUE);
 
             g_hChkCover = CreateWindowW(L"BUTTON", L"Front cover page",
                                         WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
                                         35, 323, 160, 22, hwnd, (HMENU)ID_CHK_COVER, NULL, NULL);
-            SendMessage(g_hChkCover, WM_SETFONT, (WPARAM)g_hFont, TRUE);
-            SendMessage(g_hChkCover, BM_SETCHECK, BST_UNCHECKED, 0); /* DEFAULT: UNCHECKED */
+            SendMessageW(g_hChkCover, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(g_hChkCover, BM_SETCHECK, BST_UNCHECKED, 0);
 
             g_hChkEnd = CreateWindowW(L"BUTTON", L"End page",
                                       WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
                                       220, 323, 160, 22, hwnd, (HMENU)ID_CHK_END, NULL, NULL);
-            SendMessage(g_hChkEnd, WM_SETFONT, (WPARAM)g_hFont, TRUE);
-            SendMessage(g_hChkEnd, BM_SETCHECK, BST_UNCHECKED, 0); /* DEFAULT: UNCHECKED */
+            SendMessageW(g_hChkEnd, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(g_hChkEnd, BM_SETCHECK, BST_UNCHECKED, 0);
 
             HWND hLblC = CreateWindowW(L"STATIC", L"Course / Title:", WS_CHILD | WS_VISIBLE, 35, 357, 110, 18, hwnd, NULL, NULL, NULL);
-            SendMessage(hLblC, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(hLblC, WM_SETFONT, (WPARAM)g_hFont, TRUE);
             g_hEdtCourse = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL, 150, 354, 140, 24, hwnd, (HMENU)ID_EDT_COURSE, NULL, NULL);
-            SendMessage(g_hEdtCourse, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(g_hEdtCourse, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
             HWND hLblM = CreateWindowW(L"STATIC", L"Subtitle:", WS_CHILD | WS_VISIBLE, 310, 357, 65, 18, hwnd, NULL, NULL, NULL);
-            SendMessage(hLblM, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(hLblM, WM_SETFONT, (WPARAM)g_hFont, TRUE);
             g_hEdtModule = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL, 380, 354, 140, 24, hwnd, (HMENU)ID_EDT_MODULE, NULL, NULL);
-            SendMessage(g_hEdtModule, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(g_hEdtModule, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
             HWND hLblA = CreateWindowW(L"STATIC", L"Student Name:", WS_CHILD | WS_VISIBLE, 35, 392, 110, 18, hwnd, NULL, NULL, NULL);
-            SendMessage(hLblA, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(hLblA, WM_SETFONT, (WPARAM)g_hFont, TRUE);
             g_hEdtAuthor = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL, 150, 389, 140, 24, hwnd, (HMENU)ID_EDT_AUTHOR, NULL, NULL);
-            SendMessage(g_hEdtAuthor, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(g_hEdtAuthor, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
             HWND hLblU = CreateWindowW(L"STATIC", L"Institution:", WS_CHILD | WS_VISIBLE, 310, 392, 65, 18, hwnd, NULL, NULL, NULL);
-            SendMessage(hLblU, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(hLblU, WM_SETFONT, (WPARAM)g_hFont, TRUE);
             g_hEdtUni = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL, 380, 389, 140, 24, hwnd, (HMENU)ID_EDT_UNI, NULL, NULL);
-            SendMessage(g_hEdtUni, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(g_hEdtUni, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
             /* Action Buttons Row */
             g_hBtnConvert = CreateWindowW(L"BUTTON", L"Convert PDFs",
                                           WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
                                           20, 450, 445, 42, hwnd, (HMENU)ID_BTN_CONVERT, NULL, NULL);
-            SendMessage(g_hBtnConvert, WM_SETFONT, (WPARAM)g_hFontBold, TRUE);
+            SendMessageW(g_hBtnConvert, WM_SETFONT, (WPARAM)g_hFontBold, TRUE);
 
             /* Intuitive Small Folder Button (No Text, Just Icon) */
             g_hBtnOpenFolder = CreateWindowW(L"BUTTON", L"\xD83D\xDCC1",
                                              WS_CHILD | BS_PUSHBUTTON,
                                              475, 450, 60, 42, hwnd, (HMENU)ID_BTN_OPEN_FOLDER, NULL, NULL);
-            SendMessage(g_hBtnOpenFolder, WM_SETFONT, (WPARAM)g_hFontIcon, TRUE);
+            SendMessageW(g_hBtnOpenFolder, WM_SETFONT, (WPARAM)g_hFontIcon, TRUE);
 
             /* Status Label */
             g_hStatus = CreateWindowW(L"STATIC", L"Ready. Select or drag PDF files to start.",
                                       WS_CHILD | WS_VISIBLE, 20, 504, 515, 20, hwnd, NULL, NULL, NULL);
-            SendMessage(g_hStatus, WM_SETFONT, (WPARAM)g_hFont, TRUE);
+            SendMessageW(g_hStatus, WM_SETFONT, (WPARAM)g_hFont, TRUE);
 
             break;
         }
@@ -500,6 +500,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             HDROP hDrop = (HDROP)wParam;
             UINT count = DragQueryFileW(hDrop, 0xFFFFFFFF, NULL, 0);
             if (count > 0) {
+                clear_input_files();
                 for (UINT i = 0; i < count; i++) {
                     wchar_t szFile[MAX_PATH];
                     if (DragQueryFileW(hDrop, i, szFile, MAX_PATH)) {
@@ -526,7 +527,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 clear_input_files();
                 update_input_display();
             } else if (wmId == ID_CHK_SUBFOLDER) {
-                int chk = (SendMessage(g_hChkSubfolder, BM_GETCHECK, 0, 0) == BST_CHECKED);
+                int chk = (SendMessageW(g_hChkSubfolder, BM_GETCHECK, 0, 0) == BST_CHECKED);
                 EnableWindow(g_hEdtOutDir, !chk);
                 EnableWindow(g_hBtnBrowseOut, !chk);
             } else if (wmId == ID_BTN_BROWSE_OUT) {
@@ -557,6 +558,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 }
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow) {
+    CoInitialize(NULL);
     int argc = 0;
     LPWSTR *argv = CommandLineToArgvW(GetCommandLineW(), &argc);
 
@@ -572,6 +574,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
                 L"Or simply drag and drop PDF files onto the executable icon.",
                 L"CLI Help", MB_ICONINFORMATION);
             LocalFree(argv);
+            CoUninitialize();
             return 0;
         }
 
@@ -607,6 +610,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 
         if (!in_arg) {
             LocalFree(argv);
+            CoUninitialize();
             return 0;
         }
 
@@ -655,6 +659,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
         int res = process_pdf_file_w(in_arg, out_arg, &cfg, NULL, NULL, &out_pages, &out_slides, err, sizeof(err));
 
         LocalFree(argv);
+        CoUninitialize();
         return res;
     }
 
@@ -686,7 +691,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
         NULL, NULL, hInstance, NULL
     );
 
-    if (!hwnd) return 1;
+    if (!hwnd) {
+        CoUninitialize();
+        return 1;
+    }
 
     ShowWindow(hwnd, nCmdShow);
     UpdateWindow(hwnd);
@@ -697,5 +705,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
         DispatchMessageW(&msg);
     }
 
+    CoUninitialize();
     return (int)msg.wParam;
 }
