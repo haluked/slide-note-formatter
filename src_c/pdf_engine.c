@@ -1390,10 +1390,21 @@ int process_pdf_file_w(
         current_page_idx++;
     }
 
-    /* B. Handout Slides with Note Lines */
-    double slot_h = A4_HEIGHT / (double)slides_per_page;
-    double slide_w = 270.0;
-    double left_margin = 32.0;
+    /* B. Handout Slides with Note Space
+       A4: 210mm x 297mm (595.28 pt x 841.89 pt)
+       Left / Top / Bottom margins: 5mm (14.17 pt)
+       Right Note Gap: 84mm (238.11 pt)
+       Slide Width: 121mm (342.99 pt)
+       Vertical Gap between slides: 5mm (14.17 pt)
+       Slide Height: (287mm - (N-1)*5mm) / N (for N=3: 92.333mm = 261.73 pt)
+    */
+    double mm_to_pt = 72.0 / 25.4;
+    double left_margin = 5.0 * mm_to_pt;
+    double top_margin = 5.0 * mm_to_pt;
+    double slide_gap = 5.0 * mm_to_pt;
+    double final_w = (210.0 - 5.0 - 84.0) * mm_to_pt; /* 121mm */
+    double total_avail_h = (297.0 - 10.0) * mm_to_pt; /* 287mm */
+    double final_h = (total_avail_h - (slides_per_page - 1) * slide_gap) / (double)slides_per_page;
 
     for (int p_idx = 0; p_idx < handout_pages_count; p_idx++) {
         int pid = page_obj_ids[current_page_idx];
@@ -1416,13 +1427,13 @@ int process_pdf_file_w(
         ByteBuffer cs;
         bb_init(&cs);
 
-        /* Header Watermark - Precisely Right-Aligned to Note Line Margin */
+        /* Header Watermark - Top Right Corner */
         if (author && *author) {
-            double fsize = 7.0;
+            double fsize = 7.5;
             double text_w = get_helvetica_text_width(author, fsize);
-            double target_right_x = A4_WIDTH - 28.0; /* exactly aligns with the right note line edge */
+            double target_right_x = A4_WIDTH - 20.0; /* 7mm from right */
             double text_x = target_right_x - text_w;
-            double text_y = A4_HEIGHT - 22.0; /* top margin */
+            double text_y = A4_HEIGHT - 18.0; /* 6.3mm from top */
             bb_printf(&cs, "BT /F1 %.1f Tf 0.55 0.55 0.55 rg 1 0 0 1 %.2f %.2f Tm (%s) Tj ET\n", fsize, text_x, text_y, author);
         }
 
@@ -1439,32 +1450,27 @@ int process_pdf_file_w(
             if (orig_w <= 0.0) orig_w = 720.0;
             if (orig_h <= 0.0) orig_h = 540.0;
 
-            double max_h = slot_h * 0.90;
-            double scale = slide_w / orig_w;
-            if (orig_h * scale > max_h) {
-                scale = max_h / orig_h;
-            }
-            double final_w = orig_w * scale;
-            double final_h = orig_h * scale;
+            double slot_top_y = (A4_HEIGHT - top_margin) - slot * (final_h + slide_gap);
+            double pos_x = left_margin;
+            double pos_y = slot_top_y - final_h;
 
-            double slot_bottom = A4_HEIGHT - (slot + 1) * slot_h;
-            double pos_x = left_margin + (slide_w - final_w) / 2.0;
-            double pos_y = slot_bottom + (slot_h - final_h) / 2.0;
+            double scale_x = final_w / orig_w;
+            double scale_y = final_h / orig_h;
 
             bb_append_str(&cs, "q\n");
-            bb_printf(&cs, "%.4f 0 0 %.4f %.2f %.2f cm\n", scale, scale, pos_x - (pi->x0 * scale), pos_y - (pi->y0 * scale));
+            bb_printf(&cs, "%.4f 0 0 %.4f %.2f %.2f cm\n", scale_x, scale_y, pos_x - (pi->x0 * scale_x), pos_y - (pi->y0 * scale_y));
             bb_printf(&cs, "/S%d Do\n", s_idx);
             bb_append_str(&cs, "Q\n");
 
             if (draw_border) {
-                bb_append_str(&cs, "q\n0.75 0.75 0.75 RG 0.5 w\n");
+                bb_append_str(&cs, "q\n0.70 0.70 0.70 RG 0.75 w\n");
                 bb_printf(&cs, "%.2f %.2f %.2f %.2f re S\n", pos_x, pos_y, final_w, final_h);
                 bb_append_str(&cs, "Q\n");
             }
 
             if (draw_note_lines) {
-                double line_x1 = left_margin + slide_w + 24.0;
-                double line_x2 = A4_WIDTH - 28.0;
+                double line_x1 = left_margin + final_w + 20.0;
+                double line_x2 = A4_WIDTH - 20.0;
                 int num_lines = (slides_per_page == 2) ? 7 : (slides_per_page == 3 ? 5 : 3);
                 double line_step = final_h / (double)(num_lines + 1);
 

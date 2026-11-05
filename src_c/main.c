@@ -436,7 +436,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                                          WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
                                          330, 242, 180, 22, hwnd, (HMENU)ID_CHK_BORDER, NULL, NULL);
             SendMessageW(g_hChkBorder, WM_SETFONT, (WPARAM)g_hFont, TRUE);
-            SendMessageW(g_hChkBorder, BM_SETCHECK, BST_UNCHECKED, 0);
+            SendMessageW(g_hChkBorder, BM_SETCHECK, BST_CHECKED, 0);
 
             /* Group 3: Metadata & Cover */
             HWND hGrp2 = CreateWindowW(L"BUTTON", L"Cover & Details (Optional)",
@@ -627,7 +627,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
         PDFEngineConfig cfg;
         memset(&cfg, 0, sizeof(cfg));
         cfg.slides_per_page = slides;
-        cfg.draw_border = 0;
+        cfg.draw_border = 1;
         cfg.draw_note_lines = 0;
         cfg.add_cover = 0;
         cfg.add_end = 0;
