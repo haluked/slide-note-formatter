@@ -1,6 +1,6 @@
 # Retro GB Design Specification
 
-**Slide Note Formatter v2.1** · Windows 10/11
+**Slide Note Formatter v2.1.1** · Windows 10/11
 
 This document defines the Game Boy-inspired design language used by the native
 C11/Win32 UI. The goal is a calm, readable, pixel-accurate interface that still
@@ -117,11 +117,19 @@ Never use:
 ## 6. Icon
 
 The application icon is a 16×16 pixel map rendered into a multi-size `.ico`
-(16, 32, 48, 64, 128, 256). It uses the same four colors: a light page, a dark
-slide block and three note lines. No anti-aliasing or extra colors.
+(16, 32, 48, 64, 128, 256). It uses the same four colors: a light page, two dark
+slide blocks and two note lines. No anti-aliasing or extra colors.
 
 ![Slide Note Formatter icon](assets/icon-gb.png)
 
-## 7. Reference
+Ten alternative icon studies are collected in
+[assets/icon-alts/contact-sheet.png](assets/icon-alts/contact-sheet.png).
+The shipped icon is study **06 — Two Slides**.
 
-![Slide Note Formatter main window](assets/screenshot.png)
+## 7. Screenshots
+
+| Main window | File ready |
+|---|---|
+| ![Main window](assets/screenshots/main.png) | ![File ready](assets/screenshots/ready.png) |
+| **Slides per page** | **Conversion complete** |
+| ![Dropdown](assets/screenshots/dropdown.png) | ![Success](assets/screenshots/success.png) |

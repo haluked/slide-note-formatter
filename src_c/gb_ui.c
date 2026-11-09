@@ -1137,7 +1137,7 @@ int gb_message_box(HWND owner, const wchar_t *title, const wchar_t *text, UINT f
         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
         DEFAULT_PITCH | FF_MODERN, L"Consolas");
 
-    body_w = gb_scale(390);
+    body_w = gb_scale(470);
     dc = GetDC(owner);
     old = SelectObject(dc, g_msg.font_body);
     calc.left = 0; calc.top = 0; calc.right = body_w; calc.bottom = 0;

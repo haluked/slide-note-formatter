@@ -4,8 +4,8 @@
 1 24 "res.manifest"
 
 1 VERSIONINFO
-FILEVERSION 2,1,0,0
-PRODUCTVERSION 2,1,0,0
+FILEVERSION 2,1,1,0
+PRODUCTVERSION 2,1,1,0
 FILEOS 0x40004
 FILETYPE 0x1
 {
@@ -15,12 +15,12 @@ FILETYPE 0x1
     {
       VALUE "CompanyName", "SlideNoteFormatter"
       VALUE "FileDescription", "Native Slide Note Formatter (Win32)"
-      VALUE "FileVersion", "2.1.0.0"
+      VALUE "FileVersion", "2.1.1.0"
       VALUE "InternalName", "SlideNoteFormatter"
       VALUE "LegalCopyright", "MIT License"
       VALUE "OriginalFilename", "SlideNoteFormatter.exe"
       VALUE "ProductName", "Slide Note Formatter"
-      VALUE "ProductVersion", "2.1.0.0"
+      VALUE "ProductVersion", "2.1.1.0"
     }
   }
   BLOCK "VarFileInfo"

@@ -1,6 +1,6 @@
 # Slide Note Formatter
 
-**v2.1 · Native C11 / Win32 · Windows 10/11 · MIT**
+**v2.1.1 · Native C11 / Win32 · Windows 10/11 · MIT**
 
 <p align="center">
   <img src="assets/icon-gb.png" width="96" height="96" alt="Slide Note Formatter GB icon" />
@@ -10,7 +10,7 @@
 
 Bu depo, uygulamanın **tek aktif sürümünü** içerir: saf C11 / Win32 ile yazılmış, Python, Electron veya Tauri çalışma zamanı gerektirmeyen yerel derleme.
 
-![Slide Note Formatter](assets/screenshot.png)
+![Slide Note Formatter](assets/screenshots/ready.png)
 
 ## Özellikler
 
@@ -24,6 +24,23 @@ Bu depo, uygulamanın **tek aktif sürümünü** içerir: saf C11 / Win32 ile ya
 - **İlerleme çubuğu:** Dönüştürme sırasında GB tarzı ilerleme göstergesi.
 - **Tamamen çevrimdışı:** Dosyalar hiçbir sunucuya yüklenmez.
 - **Hafif:** Yaklaşık 220 KB tek dosya; harici çalışma zamanı yok.
+
+## Ekran Görüntüleri
+
+| Ana ekran | Dosya hazır |
+|---|---|
+| ![Ana ekran](assets/screenshots/main.png) | ![Dosya hazır](assets/screenshots/ready.png) |
+| **Slides per page** | **Dönüşüm tamamlandı** |
+| ![Dropdown](assets/screenshots/dropdown.png) | ![Başarı](assets/screenshots/success.png) |
+
+## İkon
+
+<p align="center">
+  <img src="assets/icon-gb.png" width="96" height="96" alt="Slide Note Formatter GB icon" />
+</p>
+
+Seçilen ikon: **06 — Two Slides**. 10 alternatifin tamamı:
+[ikon karşılaştırma sayfası](assets/icon-alts/contact-sheet.png)
 
 ## İndirme
 
@@ -83,7 +100,7 @@ slide-note-formatter/
 │   ├── pdf_engine.h
 │   ├── res.rc          # ikon ve sürüm bilgisi
 │   └── res.manifest    # Per-Monitor V2 DPI
-├── assets/             # ikon, kurum logosu ve ekran görüntüsü
+├── assets/             # ikon, kurum logosu, ekran görüntüleri ve ikon alternatifleri
 ├── build.bat
 ├── DESIGN.md
 ├── LICENSE
