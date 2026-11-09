@@ -1,37 +1,17 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+# Build output
+dist/
 *.o
 *.obj
-*.dll
-*.log
+*.exe
+*.pdb
+*.ilk
+*.map
 
-# Build outputs
-build/
-dist/
-*.manifest
-*.spec
-
-# Rust & Tauri
-target/
-src-tauri/target/
-
-# Node.js
-node_modules/
-
-# Local Environment & Config
-.env
-.venv
-env/
-venv/
-ENV/
-
-# Output folders
+# Local conversion output
 _Not_Formatli/
 *.pdf
 
-# IDE & Editor files
+# IDE / editor
 .vscode/
 .idea/
 *.swp
@@ -43,5 +23,3 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 .DS_Store
-
-SlideNoteFormatter.exe
