@@ -1,29 +1,17 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+# Build output
+dist/
 *.o
 *.obj
+*.exe
+*.pdb
+*.ilk
+*.map
 
-# PyInstaller
-#  Usually these files are written by a python script run from the same folder
-build/
-dist/
-*.manifest
-*.spec
-
-# Local Environment & Config
-.env
-.venv
-env/
-venv/
-ENV/
-
-# Output folders
+# Local conversion output
 _Not_Formatli/
 *.pdf
 
-# IDE & Editor files
+# IDE / editor
 .vscode/
 .idea/
 *.swp
@@ -35,5 +23,3 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 .DS_Store
-
-SlideNoteFormatter.exe
