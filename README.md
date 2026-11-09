@@ -1,76 +1,76 @@
 # Slide Note Formatter
 
-**v2.1.1 · Native C11 / Win32 · Windows 10/11 · MIT**
+**v2.1.2 · Native C11 / Win32 · Windows 10/11 · MIT**
 
 <p align="center">
-  <img src="assets/icon-gb.png" width="96" height="96" alt="Slide Note Formatter GB icon" />
+  <img src="assets/icon-gb.png" width="96" height="96" alt="Slide Note Formatter icon" />
 </p>
 
-> Ders slaytlarını sağ tarafta geniş not alma alanı bırakan, kurum armalı A4 çalışma dokümanlarına dönüştürür.
+> Turn lecture slide PDFs into A4 study handouts with a wide note-taking margin and an optional cover page.
 
-Bu depo, uygulamanın **tek aktif sürümünü** içerir: saf C11 / Win32 ile yazılmış, Python, Electron veya Tauri çalışma zamanı gerektirmeyen yerel derleme.
+Slide Note Formatter is a native C11 / Win32 desktop application. It runs as a single executable, works fully offline, and does not need an installer or an external runtime.
 
 ![Slide Note Formatter](assets/screenshots/ready.png)
 
-## Özellikler
+## Features
 
-- **Retro GB arayüz:** dört tonlu DMG paleti, piksel köşeler, özel çizilmiş butonlar, checkbox'lar, dropdown, dosya listesi ve mesaj kutuları.
-- **Toplu dönüştürme:** Tek PDF veya birden fazla PDF'yi aynı anda işler.
-- **Sayfa düzeni:** Sayfa başına 2, 3 veya 4 slayt.
-- **Slayt kenarlığı:** İsteğe bağlı ince çerçeve.
-- **Ön kapak ve bitiş sayfası:** Ders adı, alt başlık, öğrenci adı ve kurum bilgisiyle.
-- **Esnek çıktı:** Kaynak dosyanın yanında `_formatted` alt klasörü veya seçilen özel klasör.
-- **Sürükle-bırak:** PDF dosyalarını doğrudan pencereye bırakabilirsiniz.
-- **İlerleme çubuğu:** Dönüştürme sırasında GB tarzı ilerleme göstergesi.
-- **Tamamen çevrimdışı:** Dosyalar hiçbir sunucuya yüklenmez.
-- **Hafif:** Yaklaşık 220 KB tek dosya; harici çalışma zamanı yok.
+- **Retro GB interface:** four-shade DMG palette, pixel-stepped corners, custom-drawn buttons, checkboxes, dropdown, file list and message boxes.
+- **Batch conversion:** process one PDF or many PDFs in one run.
+- **Page layout:** 2, 3 or 4 slides per A4 page.
+- **Slide border:** optional thin frame around each slide.
+- **Front cover and end page:** course, subtitle, student name and institution.
+- **Flexible output:** a `_formatted` subfolder next to each source, or a custom folder.
+- **Drag and drop:** drop PDF files directly onto the window.
+- **Progress bar:** GB-style conversion progress.
+- **Fully offline:** documents are never uploaded anywhere.
+- **Small:** about 220 KB single executable.
 
-## Ekran Görüntüleri
+## Screenshots
 
-| Ana ekran | Dosya hazır |
+| Main window | File ready |
 |---|---|
-| ![Ana ekran](assets/screenshots/main.png) | ![Dosya hazır](assets/screenshots/ready.png) |
-| **Slides per page** | **Dönüşüm tamamlandı** |
-| ![Dropdown](assets/screenshots/dropdown.png) | ![Başarı](assets/screenshots/success.png) |
+| ![Main window](assets/screenshots/main.png) | ![File ready](assets/screenshots/ready.png) |
+| **Slides per page** | **Conversion complete** |
+| ![Slides per page](assets/screenshots/dropdown.png) | ![Conversion complete](assets/screenshots/success.png) |
 
-## İkon
+## Icon
 
 <p align="center">
-  <img src="assets/icon-gb.png" width="96" height="96" alt="Slide Note Formatter GB icon" />
+  <img src="assets/icon-gb.png" width="96" height="96" alt="Slide Note Formatter icon" />
 </p>
 
-Seçilen ikon: **06 — Two Slides**. 10 alternatifin tamamı:
-[ikon karşılaştırma sayfası](assets/icon-alts/contact-sheet.png)
+Selected icon: **06 — Two Slides**. The full set of ten icon studies is on the
+[icon contact sheet](assets/icon-alts/contact-sheet.png).
 
-## İndirme
+## Download
 
-En son sürüm: [GitHub Releases](https://github.com/haluked/slide-note-formatter/releases/latest)
+Latest release: [GitHub Releases](https://github.com/haluked/slide-note-formatter/releases/latest)
 
-`SlideNoteFormatter.exe` dosyasını çalıştırmanız yeterlidir; kurulum gerekmez.
+Run `SlideNoteFormatter.exe` directly. No installation is required.
 
-## Derleme
+## Build
 
-Gereksinimler:
+Requirements:
 
 - MinGW-w64 GCC (C11)
 - `windres`
 - zlib (`-lz`)
 
-Tek komut:
+One command:
 
 ```cmd
 build.bat
 ```
 
-Çıktı: `dist\SlideNoteFormatter.exe`
+Output: `dist\SlideNoteFormatter.exe`
 
-## Kullanım
+## Usage
 
 ### GUI
 
-1. **BROWSE...** ile PDF seçin veya dosyaları pencereye sürükleyin.
-2. Sayfa düzenini ve isteğe bağlı kapak bilgilerini ayarlayın.
-3. **CONVERT PDFS** düğmesine basın.
+1. Choose PDFs with **BROWSE...** or drag them onto the window.
+2. Set the page layout and optional cover details.
+3. Press **CONVERT PDFS**.
 
 ### CLI
 
@@ -78,35 +78,36 @@ build.bat
 SlideNoteFormatter.exe <input.pdf> [output.pdf] [slides_per_page] [-author "Name"] [-course "Course"] [-module "Subtitle"] [-uni "Institution"]
 ```
 
-Örnek:
+Example:
 
 ```cmd
 SlideNoteFormatter.exe lecture.pdf output.pdf 3 -author "Haluk Tanriseven"
 ```
 
-## Tasarım
+## Design
 
-Retro GB tasarım sistemi, palet, tipografi, ölçüler ve bileşen kuralları için [DESIGN.md](DESIGN.md) dosyasına bakın.
+The palette, typography, measurements and component rules are documented in
+[DESIGN.md](DESIGN.md).
 
-## Proje yapısı
+## Project structure
 
 ```
 slide-note-formatter/
 ├── src_c/
-│   ├── main.c          # Win32 arayüzü ve CLI
-│   ├── gb_ui.c         # GB paleti, çizim ve özel kontroller
+│   ├── main.c          # Win32 interface and CLI
+│   ├── gb_ui.c         # GB palette, drawing and custom controls
 │   ├── gb_ui.h
-│   ├── pdf_engine.c    # PDF dönüştürme motoru
+│   ├── pdf_engine.c    # PDF conversion engine
 │   ├── pdf_engine.h
-│   ├── res.rc          # ikon ve sürüm bilgisi
+│   ├── res.rc          # icon and version information
 │   └── res.manifest    # Per-Monitor V2 DPI
-├── assets/             # ikon, kurum logosu, ekran görüntüleri ve ikon alternatifleri
+├── assets/             # icon, institution logo, screenshots and icon studies
 ├── build.bat
 ├── DESIGN.md
 ├── LICENSE
 └── README.md
 ```
 
-## Lisans
+## License
 
-MIT. Ayrıntılar için [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

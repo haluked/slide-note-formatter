@@ -1,6 +1,6 @@
 # Retro GB Design Specification
 
-**Slide Note Formatter v2.1.1** · Windows 10/11
+**Slide Note Formatter v2.1.2** · Windows 10/11
 
 This document defines the Game Boy-inspired design language used by the native
 C11/Win32 UI. The goal is a calm, readable, pixel-accurate interface that still

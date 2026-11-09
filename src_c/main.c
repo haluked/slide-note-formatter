@@ -1225,7 +1225,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
     if (argc > 1) {
         if (wcscmp(argv[1], L"-h") == 0 || wcscmp(argv[1], L"--help") == 0 || wcscmp(argv[1], L"/?") == 0) {
             MessageBoxW(NULL,
-                L"Slide Note Formatter 2.1.1 (Native C / Win32)\n\n"
+                L"Slide Note Formatter 2.1.2 (Native C / Win32)\n\n"
                 L"Usage (CLI):\n"
                 L"  SlideNoteFormatter.exe <input.pdf> [output.pdf] [slides_per_page] [-author \"Name\"]\n\n"
                 L"Example:\n"
