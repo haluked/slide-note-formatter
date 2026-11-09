@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 chcp 65001 >nul
 echo ========================================================
 echo   SlideNoteFormatter - Ultra-Lightweight C/Win32 Build
-echo   Target Size: ^< 1 MB (Actual: ~220 KB)
+echo   Target Size: ^< 1 MB (Actual: ~250 KB)
 echo ========================================================
 echo.
 
@@ -35,7 +35,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo [2/2] Compiling ultra-compact C binary (O3, LTO, GC-Sections, Static)...
-gcc -O3 -s -flto -ffunction-sections -fdata-sections -Wl,--gc-sections -static -mwindows -municode src_c\main.c src_c\pdf_engine.c %RES_OBJ% -o dist\SlideNoteFormatter.exe -lz -lcomctl32 -lcomdlg32 -lshell32 -lole32 -luuid -lgdi32 -luser32
+gcc -O3 -s -flto -ffunction-sections -fdata-sections -Wl,--gc-sections -static -mwindows -municode src_c\main.c src_c\gb_ui.c src_c\pdf_engine.c %RES_OBJ% -o dist\SlideNoteFormatter.exe -lz -lcomctl32 -lcomdlg32 -lshell32 -lole32 -luuid -lgdi32 -luser32
 
 if %ERRORLEVEL% neq 0 (
     echo.
