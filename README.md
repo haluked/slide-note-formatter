@@ -2,6 +2,10 @@
 
 **v2.1 · Native C11 / Win32 · Windows 10/11 · MIT**
 
+<p align="center">
+  <img src="assets/icon-gb.png" width="96" height="96" alt="Slide Note Formatter GB icon" />
+</p>
+
 > Ders slaytlarını sağ tarafta geniş not alma alanı bırakan, kurum armalı A4 çalışma dokümanlarına dönüştürür.
 
 Bu depo, uygulamanın **tek aktif sürümünü** içerir: saf C11 / Win32 ile yazılmış, Python, Electron veya Tauri çalışma zamanı gerektirmeyen yerel derleme.
@@ -19,7 +23,7 @@ Bu depo, uygulamanın **tek aktif sürümünü** içerir: saf C11 / Win32 ile ya
 - **Sürükle-bırak:** PDF dosyalarını doğrudan pencereye bırakabilirsiniz.
 - **İlerleme çubuğu:** Dönüştürme sırasında GB tarzı ilerleme göstergesi.
 - **Tamamen çevrimdışı:** Dosyalar hiçbir sunucuya yüklenmez.
-- **Hafif:** Yaklaşık 250 KB tek dosya; harici çalışma zamanı yok.
+- **Hafif:** Yaklaşık 220 KB tek dosya; harici çalışma zamanı yok.
 
 ## İndirme
 

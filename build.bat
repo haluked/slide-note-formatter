@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 chcp 65001 >nul
 echo ========================================================
 echo   SlideNoteFormatter - Ultra-Lightweight C/Win32 Build
-echo   Target Size: ^< 1 MB (Actual: ~250 KB)
+echo   Target Size: ^< 1 MB (Actual: ~220 KB)
 echo ========================================================
 echo.
 

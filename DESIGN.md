@@ -114,6 +114,14 @@ Never use:
 - emoji icons in the interface
 - generic “AI dashboard” cards, badges or decorative charts
 
-## 6. Reference
+## 6. Icon
+
+The application icon is a 16×16 pixel map rendered into a multi-size `.ico`
+(16, 32, 48, 64, 128, 256). It uses the same four colors: a light page, a dark
+slide block and three note lines. No anti-aliasing or extra colors.
+
+![Slide Note Formatter icon](assets/icon-gb.png)
+
+## 7. Reference
 
 ![Slide Note Formatter main window](assets/screenshot.png)
