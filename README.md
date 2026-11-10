@@ -16,14 +16,20 @@ Slide Note Formatter is a native C11 / Win32 desktop application. It runs as a s
 
 - **Retro GB interface:** four-shade DMG palette, pixel-stepped corners, custom-drawn buttons, checkboxes, dropdown, file list and message boxes.
 - **Batch conversion:** process one PDF or many PDFs in one run.
+- **Mixed page sizes:** landscape slides stay in the grid; portrait/A4 pages get their own full A4 page, so annotation and solution scans are never squeezed into a slide slot.
+- **Dense mixed-page packing:** landscape/square pages count as 1/3 and portrait pages as 2/3, so one slide plus one tall page can share a single A4 sheet. Two slides plus a tall page stay as two sheets so nothing becomes unreadably small.
 - **Page layout:** 2, 3 or 4 slides per A4 page.
 - **Slide border:** optional thin frame around each slide.
+- **Note column:** optional blank note area on the left or right, with a configurable width in millimetres.
+- **Slide spacing:** adjustable vertical gap between slides.
+- **Ruled lines:** optional writing lines inside the note column.
+- **Annotation flattening:** handwritten notes and annotations stored as PDF annotation appearances are included in the output.
 - **Front cover and end page:** course, subtitle, student name and institution.
 - **Flexible output:** a `_formatted` subfolder next to each source, or a custom folder.
 - **Drag and drop:** drop PDF files directly onto the window.
 - **Progress bar:** GB-style conversion progress.
 - **Fully offline:** documents are never uploaded anywhere.
-- **Small:** about 220 KB single executable.
+- **Small:** about 240 KB single executable.
 
 ## Screenshots
 
@@ -69,7 +75,7 @@ Output: `dist\SlideNoteFormatter.exe`
 ### GUI
 
 1. Choose PDFs with **BROWSE...** or drag them onto the window.
-2. Set the page layout and optional cover details.
+2. Set the page layout, note column, slide gap and optional cover details.
 3. Press **CONVERT PDFS**.
 
 ### CLI

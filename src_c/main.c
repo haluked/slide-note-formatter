@@ -10,6 +10,7 @@
 #include <string.h>
 #include <wchar.h>
 #include <wctype.h>
+#include <math.h>
 #include "pdf_engine.h"
 #include "gb_ui.h"
 
@@ -38,6 +39,11 @@
 #define ID_BTN_CLEAR        116
 #define ID_BTN_MIN          117
 #define ID_BTN_CLOSE        118
+#define ID_CHK_NOTE         119
+#define ID_CMB_NOTE_SIDE    120
+#define ID_EDT_NOTE_W       121
+#define ID_EDT_GAP          122
+#define ID_CHK_LINES        123
 
 #define BASE_CLIENT_W       646
 #define BASE_CLIENT_H       674
@@ -65,6 +71,11 @@ static HWND g_hEdtAuthor = NULL;
 static HWND g_hEdtUni = NULL;
 static HWND g_hChkSubfolder = NULL;
 static HWND g_hEdtOutDir = NULL;
+static HWND g_hChkNote = NULL;
+static HWND g_hCmbNoteSide = NULL;
+static HWND g_hEdtNoteW = NULL;
+static HWND g_hEdtGap = NULL;
+static HWND g_hChkLines = NULL;
 static HWND g_hBtnBrowse = NULL;
 static HWND g_hBtnClear = NULL;
 static HWND g_hBtnBrowseOut = NULL;
@@ -75,6 +86,11 @@ static HWND g_hBtnMin = NULL;
 static HWND g_hBtnClose = NULL;
 static HWND g_hLblOut = NULL;
 static HWND g_hLblSlides = NULL;
+static HWND g_hLblNoteSide = NULL;
+static HWND g_hLblNoteW = NULL;
+static HWND g_hLblNoteWUnit = NULL;
+static HWND g_hLblGap = NULL;
+static HWND g_hLblGapUnit = NULL;
 static HWND g_hLblCourse = NULL;
 static HWND g_hLblModule = NULL;
 static HWND g_hLblAuthor = NULL;
@@ -96,11 +112,21 @@ static int g_chk_border = 1;
 static int g_chk_cover = 0;
 static int g_chk_end = 0;
 static int g_slides_sel = 0;
+static int g_note_enabled = 1;
+static int g_note_side = 0;
+static double g_note_width_mm = 84.0;
+static double g_slide_gap_mm = 5.0;
+static int g_draw_note_lines = 0;
 
 static const wchar_t *g_slide_items[3] = {
     L"3 SLIDES",
     L"2 SLIDES",
     L"4 SLIDES"
+};
+
+static const wchar_t *g_note_side_items[2] = {
+    L"RIGHT",
+    L"LEFT"
 };
 
 static GbTrackedButton g_tracked[GB_MAX_TRACKED];
@@ -222,6 +248,8 @@ static void apply_control_fonts(void)
         g_hEdtCourse, g_hEdtModule, g_hEdtAuthor, g_hEdtUni,
         g_hChkSubfolder, g_hEdtOutDir, g_hBtnBrowseOut, g_hBtnConvert,
         g_hBtnOpenFolder, g_hStatus, g_hLblOut, g_hLblSlides,
+        g_hChkNote, g_hCmbNoteSide, g_hEdtNoteW, g_hEdtGap, g_hChkLines,
+        g_hLblNoteSide, g_hLblNoteW, g_hLblNoteWUnit, g_hLblGap, g_hLblGapUnit,
         g_hLblCourse, g_hLblModule, g_hLblAuthor, g_hLblUni,
         g_hBtnMin, g_hBtnClose
     };
@@ -230,9 +258,13 @@ static void apply_control_fonts(void)
         if (controls[i]) SendMessageW(controls[i], WM_SETFONT, (WPARAM)g_fontNormal, TRUE);
     }
     if (g_hStatus) SendMessageW(g_hStatus, WM_SETFONT, (WPARAM)g_fontSmall, TRUE);
-    if (g_hLblOut || g_hLblSlides || g_hLblCourse || g_hLblModule || g_hLblAuthor || g_hLblUni) {
-        HWND labels[] = { g_hLblOut, g_hLblSlides, g_hLblCourse, g_hLblModule, g_hLblAuthor, g_hLblUni };
-        for (i = 0; i < 6; i++) {
+    {
+        HWND labels[] = {
+            g_hLblOut, g_hLblSlides, g_hLblNoteSide, g_hLblNoteW,
+            g_hLblNoteWUnit, g_hLblGap, g_hLblGapUnit,
+            g_hLblCourse, g_hLblModule, g_hLblAuthor, g_hLblUni
+        };
+        for (i = 0; i < (int)(sizeof(labels) / sizeof(labels[0])); i++) {
             if (labels[i]) SendMessageW(labels[i], WM_SETFONT, (WPARAM)g_fontSmall, TRUE);
         }
     }
@@ -252,6 +284,41 @@ static void sync_subfolder_state(void)
 {
     EnableWindow(g_hEdtOutDir, !g_chk_subfolder);
     EnableWindow(g_hBtnBrowseOut, !g_chk_subfolder);
+}
+
+static void sync_note_state(void)
+{
+    BOOL on = g_note_enabled ? TRUE : FALSE;
+    EnableWindow(g_hCmbNoteSide, on);
+    EnableWindow(g_hEdtNoteW, on);
+    EnableWindow(g_hChkLines, on);
+    if (!on) {
+        g_draw_note_lines = 0;
+        set_check_state(g_hChkLines, 0);
+    }
+}
+
+static void set_mm_edit(HWND hwnd, double value)
+{
+    wchar_t buf[32];
+    _snwprintf(buf, 32, L"%.1f", value);
+    buf[31] = L'\0';
+    SetWindowTextW(hwnd, buf);
+}
+
+static double read_mm_edit(HWND hwnd, double def_val, double min_val, double max_val)
+{
+    wchar_t buf[32];
+    wchar_t *end = NULL;
+    double value;
+
+    GetWindowTextW(hwnd, buf, 32);
+    value = wcstod(buf, &end);
+    if (end == buf || !isfinite(value)) value = def_val;
+    if (value < min_val) value = min_val;
+    if (value > max_val) value = max_val;
+    set_mm_edit(hwnd, value);
+    return value;
 }
 
 static void clear_input_files(void)
@@ -452,6 +519,23 @@ static void open_slides_dropdown(void)
     gb_dropdown_open(g_hwnd, &anchor, g_slide_items, 3, g_slides_sel, on_slides_picked, NULL);
 }
 
+static void on_note_side_picked(int index, void *user)
+{
+    (void)user;
+    if (index < 0 || index > 1) index = 0;
+    g_note_side = index;
+    SetWindowTextW(g_hCmbNoteSide, g_note_side_items[g_note_side]);
+    InvalidateRect(g_hCmbNoteSide, NULL, FALSE);
+}
+
+static void open_note_side_dropdown(void)
+{
+    RECT anchor;
+    GetWindowRect(g_hCmbNoteSide, &anchor);
+    MapWindowPoints(NULL, g_hwnd, (POINT*)&anchor, 2);
+    gb_dropdown_open(g_hwnd, &anchor, g_note_side_items, 2, g_note_side, on_note_side_picked, NULL);
+}
+
 /* --------------------------------------------------------------- progress */
 
 typedef struct {
@@ -502,15 +586,22 @@ static void do_convert(void)
     use_subfolder = g_chk_subfolder;
     GetWindowTextW(g_hEdtOutDir, custom_out_dir, MAX_PATH);
 
-    memset(&cfg, 0, sizeof(cfg));
+    pdf_engine_config_init(&cfg);
+    g_note_width_mm = read_mm_edit(g_hEdtNoteW, 84.0, 30.0, 145.0);
+    g_slide_gap_mm = read_mm_edit(g_hEdtGap, 5.0, 0.0, 40.0);
+
     if (g_slides_sel == 1) cfg.slides_per_page = 2;
     else if (g_slides_sel == 2) cfg.slides_per_page = 4;
     else cfg.slides_per_page = 3;
 
-    cfg.draw_note_lines = 0;
+    cfg.draw_note_lines = g_note_enabled ? g_draw_note_lines : 0;
     cfg.draw_border = g_chk_border;
     cfg.add_cover = g_chk_cover;
     cfg.add_end = g_chk_end;
+    cfg.note_area_enabled = g_note_enabled;
+    cfg.note_side = g_note_side;
+    cfg.note_width_mm = g_note_width_mm;
+    cfg.slide_gap_mm = g_slide_gap_mm;
 
     GetWindowTextW(g_hEdtCourse, tmp_w, 256);
     WideCharToMultiByte(CP_UTF8, 0, tmp_w, -1, course_u8, sizeof(course_u8), NULL, NULL);
@@ -806,6 +897,8 @@ static void paint_main(HWND hwnd, HDC hdc)
 
     draw_control_frame(hdc, g_hListFiles);
     draw_control_frame(hdc, g_hEdtOutDir);
+    draw_control_frame(hdc, g_hEdtNoteW);
+    draw_control_frame(hdc, g_hEdtGap);
     draw_control_frame(hdc, g_hEdtCourse);
     draw_control_frame(hdc, g_hEdtModule);
     draw_control_frame(hdc, g_hEdtAuthor);
@@ -857,9 +950,20 @@ static void layout_controls(void)
     SetWindowPos(g_hEdtOutDir, NULL, S(140), S(282), S(348), S(26), SWP_NOZORDER);
     SetWindowPos(g_hBtnBrowseOut, NULL, S(498), S(280), S(116), S(28), SWP_NOZORDER);
 
-    SetWindowPos(g_hLblSlides, NULL, S(32), S(354), S(140), S(20), SWP_NOZORDER);
-    SetWindowPos(g_hCmbSlides, NULL, S(180), S(350), S(180), S(28), SWP_NOZORDER);
-    SetWindowPos(g_hChkBorder, NULL, S(390), S(352), S(220), S(24), SWP_NOZORDER);
+    SetWindowPos(g_hLblSlides, NULL, S(32), S(354), S(70), S(20), SWP_NOZORDER);
+    SetWindowPos(g_hCmbSlides, NULL, S(105), S(350), S(140), S(28), SWP_NOZORDER);
+    SetWindowPos(g_hChkBorder, NULL, S(255), S(352), S(145), S(24), SWP_NOZORDER);
+    SetWindowPos(g_hChkNote, NULL, S(410), S(352), S(150), S(24), SWP_NOZORDER);
+
+    SetWindowPos(g_hLblNoteSide, NULL, S(32), S(384), S(36), S(20), SWP_NOZORDER);
+    SetWindowPos(g_hCmbNoteSide, NULL, S(72), S(380), S(90), S(26), SWP_NOZORDER);
+    SetWindowPos(g_hLblNoteW, NULL, S(178), S(384), S(48), S(20), SWP_NOZORDER);
+    SetWindowPos(g_hEdtNoteW, NULL, S(230), S(380), S(56), S(26), SWP_NOZORDER);
+    SetWindowPos(g_hLblNoteWUnit, NULL, S(290), S(384), S(24), S(20), SWP_NOZORDER);
+    SetWindowPos(g_hLblGap, NULL, S(322), S(384), S(34), S(20), SWP_NOZORDER);
+    SetWindowPos(g_hEdtGap, NULL, S(360), S(380), S(56), S(26), SWP_NOZORDER);
+    SetWindowPos(g_hLblGapUnit, NULL, S(420), S(384), S(24), S(20), SWP_NOZORDER);
+    SetWindowPos(g_hChkLines, NULL, S(455), S(380), S(150), S(24), SWP_NOZORDER);
 
     SetWindowPos(g_hChkCover, NULL, S(32), S(440), S(200), S(24), SWP_NOZORDER);
     SetWindowPos(g_hChkEnd, NULL, S(250), S(440), S(180), S(24), SWP_NOZORDER);
@@ -938,10 +1042,22 @@ static void create_controls(HWND hwnd, HINSTANCE inst)
     g_hBtnBrowseOut = make_button(hwnd, inst, ID_BTN_BROWSE_OUT, L"...", 0);
     track_button(g_hBtnBrowseOut);
 
-    g_hLblSlides = make_label(hwnd, inst, L"SLIDES PER PAGE:");
+    g_hLblSlides = make_label(hwnd, inst, L"SLIDES:");
     g_hCmbSlides = make_button(hwnd, inst, ID_CMB_SLIDES, g_slide_items[0], 0);
     track_button(g_hCmbSlides);
     g_hChkBorder = make_check(hwnd, inst, ID_CHK_BORDER, L"SLIDE BORDER");
+
+    g_hChkNote = make_check(hwnd, inst, ID_CHK_NOTE, L"NOTE COLUMN");
+    g_hLblNoteSide = make_label(hwnd, inst, L"SIDE:");
+    g_hCmbNoteSide = make_button(hwnd, inst, ID_CMB_NOTE_SIDE, g_note_side_items[g_note_side], 0);
+    track_button(g_hCmbNoteSide);
+    g_hLblNoteW = make_label(hwnd, inst, L"WIDTH:");
+    g_hEdtNoteW = make_edit(hwnd, inst, ID_EDT_NOTE_W);
+    g_hLblNoteWUnit = make_label(hwnd, inst, L"MM");
+    g_hLblGap = make_label(hwnd, inst, L"GAP:");
+    g_hEdtGap = make_edit(hwnd, inst, ID_EDT_GAP);
+    g_hLblGapUnit = make_label(hwnd, inst, L"MM");
+    g_hChkLines = make_check(hwnd, inst, ID_CHK_LINES, L"RULED LINES");
 
     g_hChkCover = make_check(hwnd, inst, ID_CHK_COVER, L"FRONT COVER PAGE");
     g_hChkEnd = make_check(hwnd, inst, ID_CHK_END, L"END PAGE");
@@ -981,8 +1097,14 @@ static void create_controls(HWND hwnd, HINSTANCE inst)
     set_check_state(g_hChkBorder, g_chk_border);
     set_check_state(g_hChkCover, g_chk_cover);
     set_check_state(g_hChkEnd, g_chk_end);
+    set_check_state(g_hChkNote, g_note_enabled);
+    set_check_state(g_hChkLines, g_draw_note_lines);
     SetWindowTextW(g_hCmbSlides, g_slide_items[g_slides_sel]);
+    SetWindowTextW(g_hCmbNoteSide, g_note_side_items[g_note_side]);
+    set_mm_edit(g_hEdtNoteW, g_note_width_mm);
+    set_mm_edit(g_hEdtGap, g_slide_gap_mm);
     sync_subfolder_state();
+    sync_note_state();
     update_input_display();
     EnableWindow(g_hBtnConvert, FALSE);
 
@@ -1108,6 +1230,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 checked = 1;
             } else if (dis->CtlID == ID_CMB_SLIDES) {
                 role = GB_ROLE_DROP;
+            } else if (dis->CtlID == ID_CMB_NOTE_SIDE) {
+                role = GB_ROLE_DROP;
+            } else if (dis->CtlID == ID_CHK_NOTE) {
+                role = GB_ROLE_CHECK;
+                checked = g_note_enabled;
+            } else if (dis->CtlID == ID_CHK_LINES) {
+                role = GB_ROLE_CHECK;
+                checked = g_draw_note_lines;
             } else if (dis->CtlID == ID_CHK_SUBFOLDER) {
                 role = GB_ROLE_CHECK;
                 checked = g_chk_subfolder;
@@ -1168,6 +1298,15 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             } else if (id == ID_CHK_END) {
                 g_chk_end = !g_chk_end;
                 set_check_state(g_hChkEnd, g_chk_end);
+            } else if (id == ID_CHK_NOTE) {
+                g_note_enabled = !g_note_enabled;
+                set_check_state(g_hChkNote, g_note_enabled);
+                sync_note_state();
+            } else if (id == ID_CHK_LINES) {
+                g_draw_note_lines = !g_draw_note_lines;
+                set_check_state(g_hChkLines, g_draw_note_lines);
+            } else if (id == ID_CMB_NOTE_SIDE) {
+                open_note_side_dropdown();
             } else if (id == ID_CMB_SLIDES) {
                 open_slides_dropdown();
             } else if (id == ID_BTN_BROWSE_OUT) {
@@ -1296,7 +1435,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
                 char err[512] = { 0 };
                 int res;
 
-                memset(&cfg, 0, sizeof(cfg));
+                pdf_engine_config_init(&cfg);
                 cfg.slides_per_page = slides;
                 cfg.draw_border = 1;
                 cfg.draw_note_lines = 0;

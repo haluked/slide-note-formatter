@@ -47,9 +47,17 @@ Layout:
 1. Title bar: 44 px.
 2. `1 FILES`: file list + Browse / Clear.
 3. `2 OUTPUT`: subfolder checkbox, custom folder edit and browse button.
-4. `3 LAYOUT`: slides-per-page dropdown and slide-border checkbox.
+4. `3 LAYOUT`: slides-per-page dropdown, slide-border checkbox, note-column
+   checkbox, note side/width, ruled lines and slide gap.
 5. `4 COVER & DETAILS`: cover/end checkboxes and four metadata fields.
 6. Bottom action row: Convert PDFs, Open Folder, progress bar and status line.
+
+Mixed-page packing: landscape/square source pages count as `1/3` of a sheet and
+portrait pages as `2/3`. Sequential items are packed up to `3/3`. A `1/3 + 2/3`
+or `2/3 + 1/3` pair shares one sheet. `1/3 + 1/3 + 2/3` is `4/3`, so it stays as
+two sheets: the two landscape slides together, then the portrait page alone.
+Mixed pages use the full content width; the note column applies to slide-only
+pages.
 
 ## 4. Components
 
