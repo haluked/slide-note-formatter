@@ -489,6 +489,9 @@ typedef struct {
     size_t count;
     size_t capacity;
 
+    PDFObj **object_cache;
+    size_t object_cache_capacity;
+
     PDFObj *trailer;
 } PDFDoc;
 
@@ -498,12 +501,22 @@ static void doc_init(PDFDoc *doc, const unsigned char *data, size_t size) {
     doc->entries = NULL;
     doc->count = 0;
     doc->capacity = 0;
+    doc->object_cache = NULL;
+    doc->object_cache_capacity = 0;
     doc->trailer = NULL;
 }
 
 static void doc_free(PDFDoc *doc) {
+    if (doc->object_cache) {
+        for (size_t i = 0; i < doc->object_cache_capacity; i++) {
+            if (doc->object_cache[i]) pdf_obj_free(doc->object_cache[i]);
+        }
+        free(doc->object_cache);
+    }
     if (doc->entries) free(doc->entries);
     if (doc->trailer) pdf_obj_free(doc->trailer);
+    doc->object_cache = NULL;
+    doc->object_cache_capacity = 0;
     doc->entries = NULL;
     doc->count = 0;
     doc->trailer = NULL;
@@ -992,7 +1005,22 @@ static PDFObj *doc_read_from_objstm(PDFDoc *doc, int stm_num, int idx) {
 
 static PDFObj *doc_get_object(PDFDoc *doc, int obj_num) {
     if (obj_num <= 0 || obj_num >= (int)doc->count) return NULL;
+
+    if ((size_t)obj_num >= doc->object_cache_capacity) {
+        size_t ncap = doc->object_cache_capacity ? doc->object_cache_capacity * 2 : 1024;
+        while (ncap <= (size_t)obj_num) ncap *= 2;
+        PDFObj **p = (PDFObj **)realloc(doc->object_cache, ncap * sizeof(PDFObj *));
+        if (!p) return NULL;
+        memset(p + doc->object_cache_capacity, 0,
+               (ncap - doc->object_cache_capacity) * sizeof(PDFObj *));
+        doc->object_cache = p;
+        doc->object_cache_capacity = ncap;
+    }
+
+    if (doc->object_cache[obj_num]) return doc->object_cache[obj_num];
+
     XRefEntry *e = &doc->entries[obj_num];
+    PDFObj *result = NULL;
 
     if (e->type == 1) {
         PDFParser p = { doc->data, doc->size, (size_t)e->offset };
@@ -1000,11 +1028,13 @@ static PDFObj *doc_get_object(PDFDoc *doc, int obj_num) {
         if (!parser_next_token(&p, tok, sizeof(tok))) return NULL;
         if (!parser_next_token(&p, tok, sizeof(tok))) return NULL;
         if (!parser_next_token(&p, tok, sizeof(tok))) return NULL;
-        return parser_parse_obj(&p);
+        result = parser_parse_obj(&p);
     } else if (e->type == 2) {
-        return doc_read_from_objstm(doc, (int)e->offset, e->gen_or_idx);
+        result = doc_read_from_objstm(doc, (int)e->offset, e->gen_or_idx);
     }
-    return NULL;
+
+    if (result) doc->object_cache[obj_num] = result;
+    return result;
 }
 
 /* -------------------------------------------------------------
@@ -1511,7 +1541,7 @@ void pdf_engine_config_init(PDFEngineConfig *config) {
     config->note_side = 0;
     config->note_width_mm = 84.0;
     config->slide_gap_mm = 5.0;
-    config->full_page_aspect = 1.1;
+    config->full_page_aspect = 0.9;
 }
 
 static void normalize_config(PDFEngineConfig *c) {
@@ -1522,7 +1552,7 @@ static void normalize_config(PDFEngineConfig *c) {
     if (c->note_width_mm > 145.0) c->note_width_mm = 145.0;
     if (c->slide_gap_mm < 0.0) c->slide_gap_mm = 0.0;
     if (c->slide_gap_mm > 40.0) c->slide_gap_mm = 40.0;
-    if (c->full_page_aspect < 1.0 || c->full_page_aspect > 2.0) c->full_page_aspect = 1.1;
+    if (c->full_page_aspect < 0.5 || c->full_page_aspect > 1.5) c->full_page_aspect = 0.9;
     if (!c->note_area_enabled) c->draw_note_lines = 0;
 }
 
@@ -1865,6 +1895,10 @@ int process_pdf_file_w(
     PDFEngineConfig default_cfg;
     if (!config) {
         pdf_engine_config_init(&default_cfg);
+        /* Preserve the historical defaults for callers that pass no config. */
+        default_cfg.add_cover = 1;
+        default_cfg.add_end = 1;
+        default_cfg.draw_note_lines = 1;
         config = &default_cfg;
     }
     PDFEngineConfig cfg = *config;
@@ -1984,7 +2018,7 @@ int process_pdf_file_w(
                 fprintf(f_out, "\nendobj\n");
             }
             bb_free(&obj_bb);
-            pdf_obj_free(obj);
+            /* obj is owned by the document's object cache. */
             continue;
         }
 

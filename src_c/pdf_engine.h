@@ -20,7 +20,7 @@ typedef struct {
     double note_width_mm;     /* space reserved from the outer page edge (default: 84) */
     double slide_gap_mm;      /* vertical gap between slide slots (default: 5) */
 
-    double full_page_aspect;  /* pages narrower than this get their own A4 page (default: 1.1) */
+    double full_page_aspect;  /* pages narrower than this are tall/portrait pages (default: 0.9) */
 
     const char *course_name;  /* Course / Subject title (e.g. "Computer Architecture") */
     const char *module_name;  /* Module name / subtitle (e.g. "Lecture 01 - Intro") */

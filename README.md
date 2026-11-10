@@ -16,8 +16,8 @@ Slide Note Formatter is a native C11 / Win32 desktop application. It runs as a s
 
 - **Retro GB interface:** four-shade DMG palette, pixel-stepped corners, custom-drawn buttons, checkboxes, dropdown, file list and message boxes.
 - **Batch conversion:** process one PDF or many PDFs in one run.
-- **Mixed page sizes:** landscape slides stay in the grid; portrait/A4 pages get their own full A4 page, so annotation and solution scans are never squeezed into a slide slot.
-- **Dense mixed-page packing:** landscape/square pages count as 1/3 and portrait pages as 2/3, so one slide plus one tall page can share a single A4 sheet. Two slides plus a tall page stay as two sheets so nothing becomes unreadably small.
+- **Mixed page sizes:** landscape and square-ish pages count as 1/3 of a sheet; portrait/tall pages count as 2/3.
+- **Dense mixed-page packing:** one slide plus one tall page can share a single A4 sheet. A `1/3 + 1/3 + 2/3` run stays on two sheets, so nothing becomes unreadably small. Mixed pages use the full content width; the note column applies to slide-only pages.
 - **Page layout:** 2, 3 or 4 slides per A4 page.
 - **Slide border:** optional thin frame around each slide.
 - **Note column:** optional blank note area on the left or right, with a configurable width in millimetres.
